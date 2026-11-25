@@ -7,7 +7,7 @@ import { rangeLong } from "./format";
 /** A loan as My requests, Incoming requests and Admin receive it. */
 export type LoanRowData = FunctionReturnType<typeof api.loans.myRequests>[number];
 
-const NOUN: Record<EventType, string> = {
+export const EVENT_NOUN: Record<EventType, string> = {
   "loan.requested": "request",
   "loan.approved": "approval",
   "loan.declined": "answer",
@@ -44,7 +44,7 @@ export function timelineText(entry: TimelineEntry, loan: LoanRowData): string {
           if (toViewer) return `You were emailed ${borrower}'s request`;
           return role === "borrower" ? `${lender} was emailed your request` : `${lender} was emailed ${borrower}'s request`;
         }
-        return `${toViewer ? "You were" : `${name} was`} emailed about the ${NOUN[entry.event]}`;
+        return `${toViewer ? "You were" : `${name} was`} emailed about the ${EVENT_NOUN[entry.event]}`;
       }
       if (entry.status === "failed") return `Couldn't email ${toViewer ? "you" : name}. An admin can retry it.`;
       if (entry.status === "skipped")

@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireAdmin } from "./lib/auth";
-import { loanView } from "./lib/loans";
+import { lentCount, loanView } from "./lib/loans";
 
 /** Every loan, newest first. Admins only (checked here, not just hidden in the UI). */
 export const allLoans = query({
@@ -32,6 +33,7 @@ export const users = query({
           role: u.role,
           trustedLender: u.trustedLender,
           listings: tools.filter((t) => t.removedAt === undefined).length,
+          lentCount: await lentCount(ctx, u._id),
         };
       }),
     );
@@ -54,16 +56,39 @@ export const failedAutomation = query({
     await requireAdmin(ctx);
     const events = await ctx.db.query("outbox").withIndex("by_status", (q) => q.eq("status", "failed")).collect();
     const reminders = (await ctx.db.query("reminders").collect()).filter((r) => r.status === "failed");
+    // First names and the tool's name, so the admin can tell what failed for whom (never emails).
+    const names = async (loanId: Id<"loans">) => {
+      const loan = await ctx.db.get("loans", loanId);
+      if (!loan) return { tool: "a removed loan", owner: "?", borrower: "?" };
+      const [tool, owner, borrower] = await Promise.all([
+        ctx.db.get("tools", loan.toolId),
+        ctx.db.get("users", loan.ownerId),
+        ctx.db.get("users", loan.borrowerId),
+      ]);
+      return { tool: tool?.name ?? "a removed tool", owner: owner?.name ?? "?", borrower: borrower?.name ?? "?" };
+    };
     return {
-      notifications: events.map((e) => ({
-        _id: e._id,
-        type: e.type,
-        loanId: e.loanId,
-        attempts: e.attempts,
-        error: e.lastError ?? "",
-        at: e.updatedAt,
-      })),
-      reminders: reminders.map((r) => ({ _id: r._id, loanId: r.loanId, date: r.date, error: r.error ?? "", at: r.updatedAt })),
+      notifications: await Promise.all(
+        events.map(async (e) => {
+          const n = await names(e.loanId);
+          return {
+            _id: e._id,
+            type: e.type,
+            loanId: e.loanId,
+            tool: n.tool,
+            recipient: e.recipient === "owner" ? n.owner : n.borrower,
+            attempts: e.attempts,
+            error: e.lastError ?? "",
+            at: e.updatedAt,
+          };
+        }),
+      ),
+      reminders: await Promise.all(
+        reminders.map(async (r) => {
+          const n = await names(r.loanId);
+          return { _id: r._id, loanId: r.loanId, tool: n.tool, borrower: n.borrower, date: r.date, error: r.error ?? "", at: r.updatedAt };
+        }),
+      ),
     };
   },
 });
