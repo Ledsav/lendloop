@@ -94,6 +94,13 @@ describe("workflow structure", () => {
     }
   });
 
+  test("the bundled SMTP credential is the local Mailpit one, with nothing secret in it", () => {
+    const [cred] = JSON.parse(fs.readFileSync(path.join(__dirname, "credentials", "mailpit-smtp.json"), "utf8"));
+    expect(cred).toMatchObject({ id: "LendLoopSmtp0001", name: "LendLoop SMTP", type: "smtp" });
+    expect(cred.data).toMatchObject({ host: "mailpit", user: "", password: "" });
+    for (const wf of all) for (const n of wf.nodes.filter((n) => n.credentials)) expect(n.credentials).toEqual({ smtp: { id: cred.id, name: cred.name } });
+  });
+
   test("the webhook keeps the raw body (needed to check the signature) and answers from the flow", () => {
     const hook = events.nodes.find((n) => n.type === "n8n-nodes-base.webhook")!;
     expect(hook.parameters).toMatchObject({ httpMethod: "POST", responseMode: "responseNode", options: { rawBody: true } });

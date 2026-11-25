@@ -91,18 +91,21 @@ Until the n8n variables are set, the app works and events are marked "skipped".
 
 ```bash
 docker compose up -d
-docker compose exec n8n n8n import:workflow --separate --input=/workflows
+docker compose exec n8n n8n import:credentials --input=/lendloop/credentials/mailpit-smtp.json
+docker compose exec n8n n8n import:workflow --separate --input=/lendloop/workflows
+docker compose exec n8n n8n publish:workflow --id=LendLoopErrors01
+docker compose exec n8n n8n publish:workflow --id=LendLoopEvents01
+docker compose exec n8n n8n publish:workflow --id=LendLoopRemind01
+docker compose restart n8n
 ```
 
-Then, in n8n at <http://localhost:5678>:
+This imports the **LendLoop SMTP** credential (Mailpit: host and port only, there is nothing secret
+in it) and the three workflows, and publishes them. Publish the error handler too: n8n 2.x only
+runs an error workflow that is published. Then open n8n at <http://localhost:5678> and create the
+owner account (local only).
 
-1. Create the owner account (local only).
-2. Add an **SMTP** credential named **`LendLoop SMTP`**: host `mailpit`, port `1025`, SSL/TLS off,
-   no user or password. Open each workflow and check its email node uses it.
-3. Publish (activate) **LendLoop: request notification** and **LendLoop: overdue reminders**.
-   **LendLoop: error handler** runs on its own when another workflow fails.
-
-Every email lands in Mailpit at <http://localhost:8025>.
+Every email lands in Mailpit at <http://localhost:8025>. To use a real SMTP server instead, edit
+the **LendLoop SMTP** credential in n8n; its password stays encrypted in n8n.
 
 ### 5. Run the app
 
@@ -156,7 +159,7 @@ or use n8n Cloud. In both cases set `LENDLOOP_CONVEX_SITE_URL` in `.env.n8n` to
 | `LENDLOOP_MAIL_FROM`, `LENDLOOP_OPS_EMAIL` | `.env.n8n` | Sender address; where failure alerts go |
 
 `.env.local` and `.env.n8n` are git-ignored. The SMTP server's settings live in the n8n credential,
-not in the workflows.
+not in the workflows (`n8n/credentials/mailpit-smtp.json` is the local Mailpit one, with no secret).
 
 ## Architecture
 
@@ -219,7 +222,8 @@ Code map:
 | `convex/reminders.ts`, `convex/http.ts` | Overdue list and the endpoints n8n calls |
 | `convex/lib/hmac.ts` | Request signing and verification (shared by both directions) |
 | `app/`, `components/`, `lib/` | Next.js UI |
-| `n8n/workflows/*.json` | Exported workflows |
+| `n8n/workflows/*.json` | Exported workflows (import them as in step 4) |
+| `n8n/credentials/mailpit-smtp.json` | The local SMTP credential (Mailpit, no secret) |
 | `docker-compose.yml` | n8n + Mailpit |
 
 ## Roles and access control
@@ -281,7 +285,7 @@ intact.
 
 ### Errors (`lendloop-error-handler.json`)
 
-Both workflows name it as their error workflow. It emails `LENDLOOP_OPS_EMAIL` the workflow name,
+Both workflows name it as their error workflow (it must be published, like the others). It emails `LENDLOOP_OPS_EMAIL` the workflow name,
 the failed node, the error and a link to the execution (not the execution's data). On the Convex
 side, notifications that can't be delivered after 6 attempts (30 s, 1, 2, 4, 8 min backoff) are
 marked `failed` and listed on the admin page with a **Retry** button. Retrying creates a new
