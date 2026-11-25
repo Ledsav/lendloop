@@ -33,6 +33,7 @@ export default defineSchema({
     startDate: v.string(), // YYYY-MM-DD (UTC)
     endDate: v.string(), // YYYY-MM-DD (UTC), inclusive
     status: loanStatus,
+    requestedAt: v.optional(v.number()), // older rows fall back to _creationTime
     decidedAt: v.optional(v.number()),
     returnedAt: v.optional(v.number()),
   })

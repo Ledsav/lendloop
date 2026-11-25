@@ -2,6 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { isAdmin } from "./auth";
 import { daysBetween, today } from "./dates";
+import type { Category, EventType } from "./validators";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -101,8 +102,43 @@ export async function loanActivity(ctx: Ctx, loanId: Id<"loans">): Promise<Activ
     .slice(0, 5);
 }
 
+/** One line of a loan's story; the client words it from the viewer's side. */
+export type TimelineEntry =
+  | { kind: "requested" | "approved" | "declined" | "returned"; at: number }
+  | { kind: "cancelled"; at: number; by: "borrower" | "owner" }
+  | { kind: "email"; at: number; event: EventType; to: "owner" | "borrower"; status: Doc<"outbox">["status"] }
+  | { kind: "reminder"; at: number; date: string; status: "sent" | "failed" };
+
+const TIMELINE_LENGTH = 8;
+
+/** What happened to a loan and which emails and reminders went out, oldest first. */
+export async function loanTimeline(ctx: Ctx, loan: Doc<"loans">): Promise<TimelineEntry[]> {
+  const events = await ctx.db.query("outbox").withIndex("by_loan", (q) => q.eq("loanId", loan._id)).collect();
+  const reminders = await ctx.db.query("reminders").withIndex("by_loan", (q) => q.eq("loanId", loan._id)).collect();
+  const steps: TimelineEntry[] = [{ kind: "requested", at: loan.requestedAt ?? loan._creationTime }];
+  if (loan.decidedAt !== undefined) {
+    if (loan.status === "cancelled") {
+      // A borrower's cancellation notifies the owner; a removed listing notifies the borrower.
+      const toOwner = events.some((e) => e.type === "loan.cancelled" && e.recipient === "owner");
+      steps.push({ kind: "cancelled", at: loan.decidedAt, by: toOwner ? "borrower" : "owner" });
+    } else if (loan.status === "declined") {
+      steps.push({ kind: "declined", at: loan.decidedAt });
+    } else {
+      steps.push({ kind: "approved", at: loan.decidedAt }); // approved, then maybe returned
+    }
+  }
+  if (loan.returnedAt !== undefined) steps.push({ kind: "returned", at: loan.returnedAt });
+  const entries: TimelineEntry[] = [
+    ...steps,
+    ...events.map((e) => ({ kind: "email" as const, at: e.updatedAt, event: e.type, to: e.recipient, status: e.status })),
+    ...reminders.map((r) => ({ kind: "reminder" as const, at: r.updatedAt, date: r.date, status: r.status })),
+  ];
+  // Stable sort: a step comes before the email it caused when both carry the same instant.
+  return entries.sort((a, b) => a.at - b.at).slice(-TIMELINE_LENGTH);
+}
+
 /** A loan row as its participants (or an admin) see it: first names only, never emails. */
-export async function loanView(ctx: Ctx, loan: Doc<"loans">) {
+export async function loanView(ctx: Ctx, loan: Doc<"loans">, viewer: Doc<"users">) {
   const [tool, owner, borrower] = await Promise.all([
     ctx.db.get("tools", loan.toolId),
     ctx.db.get("users", loan.ownerId),
@@ -112,12 +148,24 @@ export async function loanView(ctx: Ctx, loan: Doc<"loans">) {
     _id: loan._id,
     _creationTime: loan._creationTime,
     status: loan.status,
+    requestedAt: loan.requestedAt ?? loan._creationTime,
+    returnedAt: loan.returnedAt,
+    viewerRole: (viewer._id === loan.ownerId ? "owner" : viewer._id === loan.borrowerId ? "borrower" : "admin") as
+      | "owner"
+      | "borrower"
+      | "admin",
     startDate: loan.startDate,
     endDate: loan.endDate,
     overdue: isOverdue(loan),
-    tool: { _id: loan.toolId, name: tool?.name ?? "Removed tool", removed: !tool || tool.removedAt !== undefined },
+    tool: {
+      _id: loan.toolId,
+      name: tool?.name ?? "Removed tool",
+      removed: !tool || tool.removedAt !== undefined,
+      category: (tool?.category ?? "other") as Category,
+    },
     owner: { name: owner?.name ?? "?", trustedLender: owner?.trustedLender ?? false },
     borrower: { name: borrower?.name ?? "?" },
     activity: await loanActivity(ctx, loan._id),
+    timeline: await loanTimeline(ctx, loan),
   };
 }

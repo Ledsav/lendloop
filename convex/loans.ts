@@ -50,6 +50,7 @@ export const request = mutation({
       startDate,
       endDate,
       status: "requested",
+      requestedAt: Date.now(),
     });
     await emitLoanEvent(ctx, "loan.requested", loanId);
     return loanId;
@@ -124,7 +125,7 @@ export const myRequests = query({
       .withIndex("by_borrower", (q) => q.eq("borrowerId", viewer._id))
       .order("desc")
       .take(100);
-    return await Promise.all(loans.map((l) => loanView(ctx, l)));
+    return await Promise.all(loans.map((l) => loanView(ctx, l, viewer)));
   },
 });
 
@@ -138,6 +139,6 @@ export const incoming = query({
       .withIndex("by_owner", (q) => q.eq("ownerId", viewer._id))
       .order("desc")
       .take(100);
-    return await Promise.all(loans.map((l) => loanView(ctx, l)));
+    return await Promise.all(loans.map((l) => loanView(ctx, l, viewer)));
   },
 });

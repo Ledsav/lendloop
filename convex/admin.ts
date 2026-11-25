@@ -8,9 +8,9 @@ import { loanView } from "./lib/loans";
 export const allLoans = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    const viewer = await requireAdmin(ctx);
     const loans = await ctx.db.query("loans").order("desc").take(200);
-    return await Promise.all(loans.map((l) => loanView(ctx, l)));
+    return await Promise.all(loans.map((l) => loanView(ctx, l, viewer)));
   },
 });
 
