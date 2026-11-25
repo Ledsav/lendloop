@@ -42,6 +42,11 @@ export type MiniDialState = "home" | "out" | "late" | "asked" | "booked" | "retu
 
 // ---- Words.
 
+/** A day near today by its weekday ("Thu"); further off by its date ("23 Dec"), so it can't be misread. */
+export function nearDay(iso: string, today: string): string {
+  return Math.abs(daysBetween(today, iso)) <= 6 ? weekday(iso) : rangeShort(iso, iso);
+}
+
 export type Tone = "home" | "out" | "late" | "muted";
 export type StatusLines = { primary: string; secondary?: string; tone: Tone };
 
@@ -51,7 +56,8 @@ const holderWords = (holder: { name: string; isViewer: boolean }) => (holder.isV
 export function itemStatus(loop: Loop): StatusLines {
   if (loop.state === "home") return { primary: "Free now", tone: "home" };
   if (loop.state === "out") {
-    if (!loop.holder) return { primary: "On loan", secondary: `back ${weekday(loop.endDate)}`, tone: "out" };
+    const today = addDays(loop.startDate, loop.day - 1);
+    if (!loop.holder) return { primary: "On loan", secondary: `back ${nearDay(loop.endDate, today)}`, tone: "out" };
     return { primary: `Day ${loop.day} of ${loop.days}`, secondary: holderWords(loop.holder), tone: "out" };
   }
   if (!loop.holder) return { primary: "Late", tone: "late" };
@@ -71,7 +77,7 @@ export function loanStatus(
       return { dial: "asked", lines: { primary: loan.viewerRole === "owner" ? "New request" : "Waiting", secondary: range, tone: "muted" } };
     case "approved": {
       if (loan.startDate > today)
-        return { dial: "booked", lines: { primary: `Starts ${weekday(loan.startDate)}`, secondary: range, tone: "home" } };
+        return { dial: "booked", lines: { primary: `Starts ${nearDay(loan.startDate, today)}`, secondary: range, tone: "home" } };
       if (loan.endDate < today) {
         const late = daysBetween(loan.endDate, today);
         return {
@@ -84,7 +90,7 @@ export function loanStatus(
       return {
         dial: "out",
         fraction: loanFraction(loan.startDate, loan.endDate, now),
-        lines: { primary: `Day ${day} of ${days}`, secondary: `back ${weekday(loan.endDate)}`, tone: "out" },
+        lines: { primary: `Day ${day} of ${days}`, secondary: `back ${nearDay(loan.endDate, today)}`, tone: "out" },
       };
     }
     case "returned":
@@ -97,6 +103,30 @@ export function loanStatus(
     case "cancelled":
       return { dial: "closed", lines: { primary: "Cancelled", secondary: range, tone: "muted" } };
   }
+}
+
+/** The two lines above the item page's calendar, for whoever is looking (the holder is "you"). */
+export function borrowHeading(
+  loop: Loop,
+  ownerName: string,
+  nextFree: string | null,
+): { title: string; sub: string; tone?: "late" } {
+  if (loop.state === "home") return { title: "Free now", sub: "Pick your dates" };
+  if (loop.state === "out") {
+    if (loop.holder?.isViewer)
+      return {
+        title: `It's with you until ${longDate(loop.endDate)}`,
+        sub: `Bring it back to ${ownerName} by then, or ask for more days below.`,
+      };
+    return { title: `Free again ${longDate(nextFree ?? addDays(loop.endDate, 1))}`, sub: `Ask ${ownerName} for later dates` };
+  }
+  if (loop.holder?.isViewer)
+    return {
+      title: `${loop.daysLate} ${loop.daysLate === 1 ? "day" : "days"} late`,
+      sub: `It was due ${longDate(loop.endDate)}. Please bring it back to ${ownerName}.`,
+      tone: "late",
+    };
+  return { title: "Not back yet", sub: `It was due ${longDate(loop.endDate)}. You can still ask for later dates.`, tone: "late" };
 }
 
 export function usageLine(recent: number, total: number): string {

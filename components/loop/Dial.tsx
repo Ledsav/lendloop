@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Loop } from "@/convex/lib/loans";
-import { weekday } from "@/lib/format";
-import { arcPath, dayTicks, itemStatus, loanFraction, pos } from "@/lib/loop";
+import { addDays } from "@/convex/lib/dates";
+import { arcPath, dayTicks, itemStatus, loanFraction, nearDay, pos } from "@/lib/loop";
 
 const W = 344;
 const H = 312; // room for a day label at the very top
@@ -113,7 +113,10 @@ export function Dial({ loop, now, plate }: { loop: Loop; now: number; plate?: Re
         <text x={CX} y={CY + 22} textAnchor="middle" fontSize="15" fill="var(--color-slate)">
           {loop.days === 1 ? "day" : "days"} {who}
         </text>
-        <UnderTick left={`Out ${weekday(loop.startDate)}`} right={`Back ${weekday(loop.endDate)}`} />
+        <UnderTick
+          left={`Out ${nearDay(loop.startDate, addDays(loop.startDate, loop.day - 1))}`}
+          right={`Back ${nearDay(loop.endDate, addDays(loop.startDate, loop.day - 1))}`}
+        />
       </>
     );
   } else {
@@ -129,7 +132,11 @@ export function Dial({ loop, now, plate }: { loop: Loop; now: number; plate?: Re
         <text x={CX} y={CY + 22} textAnchor="middle" fontSize="15" fill="var(--color-late)">
           {loop.daysLate === 1 ? "day late" : "days late"}
         </text>
-        <UnderTick left={`Out ${weekday(loop.startDate)}`} right={`Was due ${weekday(loop.endDate)}`} tone="late" />
+        <UnderTick
+          left={`Out ${nearDay(loop.startDate, addDays(loop.endDate, loop.daysLate))}`}
+          right={`Was due ${nearDay(loop.endDate, addDays(loop.endDate, loop.daysLate))}`}
+          tone="late"
+        />
       </>
     );
   }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { dayTicks, itemStatus, loanFraction, loanStatus, pos, stripMonths, stripSegments, usageLine } from "./loop";
+import { borrowHeading, dayTicks, itemStatus, loanFraction, loanStatus, pos, stripMonths, stripSegments, usageLine } from "./loop";
 import { loanFixture } from "./test.fixtures";
 
 describe("loop geometry", () => {
@@ -107,5 +107,50 @@ describe("a loan's status column", () => {
       dial: "closed",
       lines: { primary: "Declined", secondary: "1–3 Dec", tone: "muted" },
     });
+  });
+});
+
+describe("dates far off read as dates, not weekdays", () => {
+  const now = Date.parse("2026-11-25T12:00:00Z");
+  test("a loan starting in a week says the date", () => {
+    expect(loanStatus(loanFixture("owner", { status: "approved", startDate: "2026-12-02", endDate: "2026-12-04" }), "2026-11-25", now).lines.primary).toBe(
+      "Starts 2 Dec",
+    );
+    expect(loanStatus(loanFixture("owner", { status: "approved", startDate: "2026-11-27", endDate: "2026-11-28" }), "2026-11-25", now).lines.primary).toBe(
+      "Starts Fri",
+    );
+  });
+
+  test("a long loan seen by a neighbour says when it's back", () => {
+    expect(itemStatus({ state: "out", startDate: "2026-11-24", endDate: "2026-12-23", day: 2, days: 30, holder: null }).secondary).toBe("back 23 Dec");
+    expect(
+      loanStatus(loanFixture("owner", { status: "approved", startDate: "2026-11-24", endDate: "2026-12-23" }), "2026-11-25", now).lines.secondary,
+    ).toBe("back 23 Dec");
+  });
+});
+
+describe("what the item page says above the calendar", () => {
+  const out = { state: "out", startDate: "2026-11-24", endDate: "2026-11-26", day: 2, days: 3 } as const;
+  test("to a neighbour", () => {
+    expect(borrowHeading({ state: "home" }, "Lena", "2026-11-25")).toEqual({ title: "Free now", sub: "Pick your dates" });
+    expect(borrowHeading({ ...out, holder: null }, "Lena", "2026-11-27")).toEqual({
+      title: "Free again Fri 27 Nov",
+      sub: "Ask Lena for later dates",
+    });
+    expect(borrowHeading({ state: "late", startDate: "2026-11-19", endDate: "2026-11-23", daysLate: 2, holder: null }, "Lena", null)).toEqual({
+      title: "Not back yet",
+      sub: "It was due Mon 23 Nov. You can still ask for later dates.",
+      tone: "late",
+    });
+  });
+
+  test("to the person who has it", () => {
+    expect(borrowHeading({ ...out, holder: { name: "Sam", isViewer: true } }, "Lena", "2026-11-27")).toEqual({
+      title: "It's with you until Thu 26 Nov",
+      sub: "Bring it back to Lena by then, or ask for more days below.",
+    });
+    expect(
+      borrowHeading({ state: "late", startDate: "2026-11-19", endDate: "2026-11-23", daysLate: 2, holder: { name: "Sam", isViewer: true } }, "Lena", null),
+    ).toEqual({ title: "2 days late", sub: "It was due Mon 23 Nov. Please bring it back to Lena.", tone: "late" });
   });
 });

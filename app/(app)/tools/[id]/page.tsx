@@ -15,8 +15,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import { drawingFor } from "@/lib/drawings";
-import { conditionLine, longDate, rangeLong, times } from "@/lib/format";
-import { usageLine } from "@/lib/loop";
+import { conditionLine, rangeLong, times } from "@/lib/format";
+import { borrowHeading, usageLine } from "@/lib/loop";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useNow } from "@/lib/useNow";
 
@@ -96,12 +96,7 @@ function BorrowPanel({ item }: { item: ItemDetail }) {
   const owner = item.owner.name;
   const loop = item.loop;
 
-  const heading =
-    loop.state === "home"
-      ? { title: "Free now", sub: "Pick your dates" }
-      : loop.state === "out"
-        ? { title: `Free again ${longDate(item.nextFree ?? loop.endDate)}`, sub: `Ask ${owner} for later dates` }
-        : { title: "Not back yet", sub: `It was due ${longDate(loop.endDate)}. You can still ask for later dates.` };
+  const heading = borrowHeading(loop, owner, item.nextFree);
 
   const picker = (
     <RequestDates
@@ -135,7 +130,7 @@ function BorrowPanel({ item }: { item: ItemDetail }) {
         </p>
       ))}
       <p className="leading-snug">
-        <b className={`block text-[16px] font-semibold ${loop.state === "late" ? "text-late" : ""}`}>{heading.title}</b>
+        <b className={`block text-[16px] font-semibold ${heading.tone === "late" ? "text-late" : ""}`}>{heading.title}</b>
         <span className="text-[14px] text-slate">{heading.sub}</span>
       </p>
       {wide ? (
