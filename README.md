@@ -184,6 +184,9 @@ not in the workflows (`n8n/credentials/mailpit-smtp.json` is the local Mailpit o
 
 ## Architecture
 
+The full tour, with a diagram of every flow and the reasoning behind each decision, is in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ```mermaid
 flowchart LR
   subgraph Browser
