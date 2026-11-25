@@ -51,7 +51,6 @@ export function RequestDates({
         modifiers={{ booked: taken }}
         modifiersClassNames={{ booked: "[&_button]:line-through [&_button]:decoration-slate" }}
         excludeDisabled
-        resetOnSelect
       />
       <p aria-live="polite" className="mt-3 min-h-[22px] text-[15px]">
         {start && last && !problem ? (
