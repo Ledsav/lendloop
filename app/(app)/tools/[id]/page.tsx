@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { use, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { Drawing } from "@/components/items/drawings";
 import { OwnerControls, type ItemDetail } from "@/components/items/OwnerControls";
 import { RequestDates } from "@/components/items/RequestDates";
@@ -91,6 +92,7 @@ export default function ItemPage({ params }: { params: Promise<{ id: string }> }
 function BorrowPanel({ item }: { item: ItemDetail }) {
   const wide = useMediaQuery("(min-width: 768px)");
   const [open, setOpen] = useState(false);
+  const [range, setRange] = useState<DateRange | undefined>();
   const owner = item.owner.name;
   const loop = item.loop;
 
@@ -101,7 +103,17 @@ function BorrowPanel({ item }: { item: ItemDetail }) {
         ? { title: `Free again ${longDate(item.nextFree ?? loop.endDate)}`, sub: `Ask ${owner} for later dates` }
         : { title: "Not back yet", sub: `It was due ${longDate(loop.endDate)}. You can still ask for later dates.` };
 
-  const picker = <RequestDates toolId={item._id} ownerName={owner} today={item.today} booked={item.booked} onDone={() => setOpen(false)} />;
+  const picker = (
+    <RequestDates
+      toolId={item._id}
+      ownerName={owner}
+      today={item.today}
+      booked={item.booked}
+      range={range}
+      onRangeChange={setRange}
+      onDone={() => setOpen(false)}
+    />
+  );
 
   return (
     <div className="space-y-4">
