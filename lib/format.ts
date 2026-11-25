@@ -105,3 +105,9 @@ export function localDateToIso(d: Date): string {
 
 /** "once", "twice", "3 times" */
 export const times = (n: number) => (n === 1 ? "once" : n === 2 ? "twice" : `${n} times`);
+
+/** An item's name inside a sentence: "the cordless drill" (an acronym like "HDMI" keeps its capitals). */
+export function thing(name: string) {
+  const lower = /^[A-Z][A-Z]/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1);
+  return `the ${lower}`;
+}

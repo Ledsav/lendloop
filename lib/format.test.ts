@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { conditionLine, isoToLocalDate, localDateToIso, longDate, rangeLong, rangeShort, times, weekday, when } from "./format";
+import { conditionLine, isoToLocalDate, thing, localDateToIso, longDate, rangeLong, rangeShort, times, weekday, when } from "./format";
 
 describe("dates in words", () => {
   test("loan dates read like 'Fri 27 Nov', in UTC", () => {
@@ -39,5 +39,10 @@ describe("small words", () => {
     expect(times(1)).toBe("once");
     expect(times(2)).toBe("twice");
     expect(times(7)).toBe("7 times");
+  });
+
+  test("an item's name inside a sentence", () => {
+    expect(thing("Cordless drill")).toBe("the cordless drill");
+    expect(thing("HDMI cable")).toBe("the HDMI cable");
   });
 });

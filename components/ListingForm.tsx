@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { ErrorText } from "@/components/states";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { CATEGORIES, CONDITIONS, type Category, type Condition } from "@/convex/lib/validators";
-import { Button, ErrorText, inputClass } from "./legacy-ui";
+import { CATEGORY_LABEL } from "@/lib/format";
 
 export type ListingValues = { name: string; category: Category; condition: Condition; description: string };
 
 const EMPTY: ListingValues = { name: "", category: "power tools", condition: "good", description: "" };
+const CONDITION_LABEL: Record<Condition, string> = { new: "New", good: "Good", fair: "Fair", worn: "Worn, but works" };
 
 export function ListingForm({
   initial = EMPTY,
@@ -25,49 +32,75 @@ export function ListingForm({
 }) {
   const [values, setValues] = useState(initial);
   const set = <K extends keyof ListingValues>(key: K, value: ListingValues[K]) => setValues((v) => ({ ...v, [key]: value }));
+  const id = useId();
 
   return (
     <form
-      className="space-y-3"
+      className="space-y-4"
       onSubmit={async (e) => {
         e.preventDefault();
         if ((await onSubmit(values)) && initial === EMPTY) setValues(EMPTY);
       }}
     >
-      <label className="block text-sm text-stone-700">
-        Name
-        <input required minLength={2} maxLength={60} value={values.name} onChange={(e) => set("name", e.target.value)} className={inputClass} placeholder="Cordless drill" />
-      </label>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block text-sm text-stone-700">
-          Category
-          <select value={values.category} onChange={(e) => set("category", e.target.value as Category)} className={`${inputClass} capitalize`}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm text-stone-700">
-          Condition
-          <select value={values.condition} onChange={(e) => set("condition", e.target.value as Condition)} className={`${inputClass} capitalize`}>
-            {CONDITIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="space-y-2">
+        <Label htmlFor={`${id}-name`}>What is it?</Label>
+        <Input
+          id={`${id}-name`}
+          required
+          minLength={2}
+          maxLength={60}
+          value={values.name}
+          onChange={(e) => set("name", e.target.value)}
+          placeholder="Cordless drill"
+        />
       </div>
-      <label className="block text-sm text-stone-700">
-        Short description
-        <textarea maxLength={500} rows={2} value={values.description} onChange={(e) => set("description", e.target.value)} className={inputClass} placeholder="What's included, anything to know" />
-      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor={`${id}-category`}>Category</Label>
+          <Select value={values.category} onValueChange={(v) => set("category", v as Category)}>
+            <SelectTrigger id={`${id}-category`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {CATEGORY_LABEL[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${id}-condition`}>Condition</Label>
+          <Select value={values.condition} onValueChange={(v) => set("condition", v as Condition)}>
+            <SelectTrigger id={`${id}-condition`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CONDITIONS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {CONDITION_LABEL[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${id}-note`}>A note for borrowers</Label>
+        <Textarea
+          id={`${id}-note`}
+          maxLength={500}
+          rows={3}
+          value={values.description}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="What's included, anything to know"
+        />
+      </div>
       <ErrorText>{error}</ErrorText>
       <div className="flex justify-end gap-2">
         {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         )}
