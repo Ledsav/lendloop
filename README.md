@@ -2,17 +2,21 @@
 
 **Borrow what you need. Lend what you don't.**
 
-A neighborhood tool-lending board: neighbors list tools, ask to borrow each other's for a date range,
-and get email notifications and overdue reminders handled by n8n.
+A neighborhood lending board: neighbors list the things they're happy to lend (tools, garden and
+kitchen kit, camping gear), ask to borrow each other's for a few days, and n8n handles the emails and
+the overdue reminders.
 
 Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and backend logic) ·
-**n8n** (workflow automation) · **TypeScript** · Tailwind CSS · Vitest + convex-test.
+**n8n** (workflow automation) · **TypeScript** · Tailwind CSS and shadcn/ui · Vitest + convex-test.
+
+![An item's page: the dial shows day 2 of 3 of a loan, with its 12-week history and a calendar to request dates](docs/screenshots/item.jpg)
 
 ---
 
 ## Contents
 
 - [What it does](#what-it-does)
+  - [Design](#design)
 - [Local setup](#local-setup)
   - [Sample data](#7-sample-data)
 - [Environment variables](#environment-variables)
@@ -26,22 +30,52 @@ Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and b
 
 ## What it does
 
-- **Public page** (`/`): tagline, a read-only list of available tools (name and category only, no
-  owner details), and a "Sign in to lend or borrow" button wired to Clerk.
+<p align="center">
+  <img src="docs/screenshots/browse-phone.jpg" width="31%" alt="Things to borrow on a phone: a row per item with its status, free now, day 2 of 3 or late">
+  <img src="docs/screenshots/item-phone.jpg" width="31%" alt="An item on a phone: the dial at day 2 of 3, with you">
+  <img src="docs/screenshots/requests-phone.jpg" width="31%" alt="My requests on a phone: each loan's history in plain words, including the reminder sent today">
+</p>
+
+- **Public page** (`/`): the tagline, what's free right now (item name and category only, no owner
+  details), how a loan works, and "Sign in to lend or borrow" (Clerk, with an emailed code).
 - **Signed-in app**:
-  - **Browse** (`/tools`): all tools with availability (available / on loan / overdue), filterable by
-    category. Ask to borrow a tool for a date range.
-  - **My listings** (`/listings`): list a tool (name, category, condition, short description), edit
-    or remove your own.
-  - **My requests** (`/requests`): what you asked to borrow, with status and recent automation
-    activity ("Overdue reminder: sent, 2 days ago"). Cancel before the loan starts.
-  - **Incoming requests** (`/incoming`): approve or decline requests for your tools, mark loans
-    returned.
-  - **Admin** (`/admin`, admins only): remove any listing, view all loans, mark users as
-    "Trusted Lender", see automation failures and retry them.
+  - **Things to borrow** (`/tools`): search and category tabs over a row per item, each with its
+    status: free now, day 2 of 3, or late. Who has an item is shown only to its owner, that borrower
+    and admins; everyone else sees "On loan, back Thu".
+  - **An item** (`/tools/[id]`): a dial with one tick per day of the current loan, the owner's note,
+    how often it was borrowed in the last 12 weeks, and a calendar to request dates (past and booked
+    days can't be picked; a range over them says why). The owner gets edit and remove instead.
+  - **My listings** (`/listings`): your things with their status, and a form to list another.
+  - **My requests** (`/requests`): what you're borrowing, waiting for, have coming up and borrowed
+    before, each with its history in plain words, the automation included ("Lena was emailed your
+    request", "Reminder sent to you, today 9:00"). Cancel before a loan starts.
+  - **Incoming requests** (`/incoming`): approve, decline, mark returned. Steps that can't be undone
+    ask first, and every action confirms itself in a toast.
+  - **Admin** (`/admin`, admins only): automation failures first (with a retry), every loan, every
+    listing (remove), and people (mark a Trusted Lender).
 - **n8n workflows**: a notification whenever a request is created or changes status, and a daily
   reminder to every borrower with an overdue loan. Both are signed in both directions, retried,
   idempotent and visible when they fail.
+
+<p align="center">
+  <img src="docs/screenshots/landing.jpg" width="49%" alt="The public page: the tagline, the loop dial and what's free now">
+  <img src="docs/screenshots/calendar.jpg" width="49%" alt="Requesting dates: a three-day range picked on the item's calendar">
+</p>
+<p align="center">
+  <img src="docs/screenshots/incoming.jpg" width="49%" alt="Incoming requests: approve or decline, mark returned, each loan's history">
+  <img src="docs/screenshots/admin.jpg" width="49%" alt="Admin: a failed email with a retry button, then every loan">
+</p>
+
+### Design
+
+Every item has a loop. At home, its dot rests at the bottom of a ring; during a loan the dot travels
+clockwise as the days pass and comes home when it's returned; late, the ring turns red. On an item's
+page the loop is a dial with one tick per loan day. Everything around it stays quiet: one ink color,
+ultramarine only for a loan in progress, red only for late, Hanken Grotesk throughout, rows separated
+by hairlines instead of cards, and shaded drawings on a neutral plate where owners' photos will go.
+The shadcn/ui components (Radix underneath) are restyled to these tokens in `app/globals.css`. The
+words and numbers the screens show (dates, statuses, the dial's geometry, the 12-week strip) are plain
+functions in `lib/`, each covered by a test. Screens and copy follow British spelling.
 
 ## Local setup
 
@@ -181,7 +215,8 @@ category, and loans in every state: requested, out, late, coming up, returned (t
 history and more), declined and cancelled. Lena and Sam own and borrow some of them, and one
 approval email is marked failed so the admin page has something to retry. The loans' emails and
 reminders are written straight into their history as already sent: nothing is scheduled and nothing
-is emailed. With your own Clerk accounts, name two that have signed in:
+is emailed when it runs. From the next daily run, the overdue-reminder workflow reminds the two late
+borrowers like any other (both have example.com addresses, so in development they land in Mailpit). With your own Clerk accounts, name two that have signed in:
 `npx convex run devtools:seed '{"realEmails": ["you@example.com", "friend@example.com"]}'`.
 
 ### Using a cloud Convex deployment
