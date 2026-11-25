@@ -5,7 +5,7 @@ import { hmacHex, signatureHeaders, verifySignature } from "../lib/hmac";
 import * as notifications from "../notifications";
 import { MAX_ATTEMPTS } from "../notifications";
 import * as reminders from "../reminders";
-import { listDrill, setup, TODAY } from "./helpers";
+import { listDrill, setup, TODAY } from "./test.helpers";
 
 const TO_N8N = "test-secret-convex-to-n8n";
 const FROM_N8N = "test-secret-n8n-to-convex";

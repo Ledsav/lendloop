@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../_generated/api";
-import { listDrill, setup, TODAY } from "./helpers";
+import { listDrill, setup, TODAY } from "./test.helpers";
 
 beforeEach(() => {
   vi.useFakeTimers();

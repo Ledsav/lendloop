@@ -4,7 +4,7 @@ import { api } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
 import * as users from "../users";
-import { listDrill, setup, TODAY } from "./helpers";
+import { listDrill, setup, TODAY } from "./test.helpers";
 
 beforeEach(() => {
   vi.useFakeTimers();
