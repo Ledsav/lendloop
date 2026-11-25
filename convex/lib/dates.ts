@@ -29,3 +29,8 @@ export function validateLoanDates(startDate: string, endDate: string, now: numbe
 /** Inclusive date ranges overlap. */
 export const overlaps = (a: { startDate: string; endDate: string }, b: { startDate: string; endDate: string }) =>
   a.startDate <= b.endDate && b.startDate <= a.endDate;
+
+/** The calendar date `n` days after (or before, if negative) an ISO date. */
+export function addDays(iso: string, n: number): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+}

@@ -1,6 +1,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { today } from "./dates";
+import { isAdmin } from "./auth";
+import { daysBetween, today } from "./dates";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -16,6 +17,54 @@ export async function availability(ctx: Ctx, toolId: Id<"tools">, now: number = 
   const current = approved.filter((l) => l.startDate <= date);
   if (current.length === 0) return "available";
   return current.some((l) => l.endDate < date) ? "overdue" : "on_loan";
+}
+
+/** Who has the item right now: shown only to the item's owner, that borrower and admins. */
+export type Holder = { name: string; isViewer: boolean } | null;
+
+/** Where an item is on its loop: at home, out (day N of M) or late. */
+export type Loop =
+  | { state: "home" }
+  | { state: "out"; startDate: string; endDate: string; day: number; days: number; holder: Holder }
+  | { state: "late"; startDate: string; endDate: string; daysLate: number; holder: Holder };
+
+/** Every loan of one tool, whatever its status. */
+export async function toolLoans(ctx: Ctx, toolId: Id<"tools">): Promise<Doc<"loans">[]> {
+  return await ctx.db
+    .query("loans")
+    .withIndex("by_tool_status", (q) => q.eq("toolId", toolId))
+    .collect();
+}
+
+/** The approved loan that has started; with several, the one due back first (a late one wins). */
+export function currentLoan(loans: Doc<"loans">[], date: string): Doc<"loans"> | null {
+  const started = loans.filter((l) => l.status === "approved" && l.startDate <= date);
+  if (started.length === 0) return null;
+  return started.reduce((a, b) => (b.endDate < a.endDate ? b : a));
+}
+
+export async function loopFor(
+  ctx: Ctx,
+  viewer: Doc<"users">,
+  tool: Doc<"tools">,
+  loans: Doc<"loans">[],
+  date: string,
+): Promise<Loop> {
+  const loan = currentLoan(loans, date);
+  if (!loan) return { state: "home" };
+  const involved = viewer._id === tool.ownerId || viewer._id === loan.borrowerId || isAdmin(viewer);
+  const borrower = involved ? await ctx.db.get("users", loan.borrowerId) : null;
+  const holder: Holder = borrower ? { name: borrower.name, isViewer: borrower._id === viewer._id } : null;
+  const { startDate, endDate } = loan;
+  if (endDate < date) return { state: "late", startDate, endDate, daysLate: daysBetween(endDate, date), holder };
+  return {
+    state: "out",
+    startDate,
+    endDate,
+    day: daysBetween(startDate, date) + 1,
+    days: daysBetween(startDate, endDate) + 1,
+    holder,
+  };
 }
 
 export const isOverdue = (loan: Doc<"loans">, now: number = Date.now()) =>

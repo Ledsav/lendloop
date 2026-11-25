@@ -4,7 +4,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { isAdmin, requireUser } from "./lib/auth";
 import { today } from "./lib/dates";
 import { emitLoanEvent } from "./lib/events";
-import { availability } from "./lib/loans";
+import { availability, loopFor, toolLoans } from "./lib/loans";
 import { category, condition } from "./lib/validators";
 
 const listingFields = {
@@ -50,9 +50,11 @@ export const list = query({
   handler: async (ctx, args) => {
     const viewer = await requireUser(ctx);
     const tools = (await activeTools(ctx)).filter((t) => !args.category || t.category === args.category);
+    const date = today();
     const rows = await Promise.all(
       tools.map(async (t) => {
         const owner = await ctx.db.get("users", t.ownerId);
+        const loans = await toolLoans(ctx, t._id);
         return {
           _id: t._id,
           name: t.name,
@@ -60,6 +62,7 @@ export const list = query({
           condition: t.condition,
           description: t.description,
           availability: await availability(ctx, t._id),
+          loop: await loopFor(ctx, viewer, t, loans, date),
           owner: { name: owner?.name ?? "?", trustedLender: owner?.trustedLender ?? false },
           isMine: t.ownerId === viewer._id,
         };
@@ -78,14 +81,13 @@ export const mine = query({
       .query("tools")
       .withIndex("by_owner", (q) => q.eq("ownerId", viewer._id))
       .collect();
+    const date = today();
     const rows = await Promise.all(
       tools
         .filter((t) => t.removedAt === undefined)
         .map(async (t) => {
-          const pending = await ctx.db
-            .query("loans")
-            .withIndex("by_tool_status", (q) => q.eq("toolId", t._id).eq("status", "requested"))
-            .collect();
+          const loans = await toolLoans(ctx, t._id);
+          const pending = loans.filter((l) => l.status === "requested");
           return {
             _id: t._id,
             name: t.name,
@@ -93,6 +95,7 @@ export const mine = query({
             condition: t.condition,
             description: t.description,
             availability: await availability(ctx, t._id),
+            loop: await loopFor(ctx, viewer, t, loans, date),
             pendingRequests: pending.length,
           };
         }),
