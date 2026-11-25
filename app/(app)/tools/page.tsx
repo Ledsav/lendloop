@@ -1,130 +1,96 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
+import { Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { AvailabilityBadge, TrustedBadge } from "@/components/badges";
-import { Button, Card, Empty, ErrorText, inputClass, Loading, PageHeader } from "@/components/legacy-ui";
+import { ItemRow } from "@/components/items/ItemRow";
+import { LoopStatus } from "@/components/items/StatusColumn";
+import { Empty, PageTitle, RowSkeleton } from "@/components/states";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { CATEGORIES, type Category } from "@/convex/lib/validators";
-import { todayUtc } from "@/lib/format";
-import { useAction } from "@/lib/useAction";
+import { filterItems } from "@/lib/filter";
+import { CATEGORY_LABEL } from "@/lib/format";
+import { useNow } from "@/lib/useNow";
+
+const TABS: (Category | "all")[] = ["all", ...CATEGORIES];
 
 export default function BrowsePage() {
-  const [category, setCategory] = useState<Category | undefined>(undefined);
-  const tools = useQuery(api.tools.list, { category });
+  const items = useQuery(api.tools.list, {});
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<Category | "all">("all");
+  const shown = items ? filterItems(items, query, tab) : [];
+  const now = useNow();
 
   return (
     <>
-      <PageHeader
-        title="All tools"
-        subtitle="Ask a neighbor to borrow something for a few days."
+      <PageTitle
+        title="Things to borrow"
         action={
-          <Link href="/listings" className="rounded-lg bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800">
-            + List a tool
-          </Link>
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/listings">Lend something</Link>
+          </Button>
         }
       />
-      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
-        {[undefined, ...CATEGORIES].map((c) => (
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate" aria-hidden="true" />
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search things"
+          aria-label="Search things"
+          className="pl-10"
+        />
+      </div>
+      <div role="group" aria-label="Categories" className="mt-4 flex gap-5 overflow-x-auto border-b border-hairline [scrollbar-width:none]">
+        {TABS.map((t) => (
           <button
-            key={c ?? "all"}
-            onClick={() => setCategory(c)}
-            aria-pressed={category === c}
-            className={`rounded-full px-3 py-1 text-sm capitalize ring-1 ${category === c ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-stone-700 ring-stone-200 hover:bg-stone-100"}`}
+            key={t}
+            type="button"
+            aria-pressed={tab === t}
+            onClick={() => setTab(t)}
+            className={`shrink-0 cursor-pointer pt-1 pb-[11px] text-[15px] whitespace-nowrap ${tab === t ? "font-semibold text-ink shadow-[inset_0_-2px_0_var(--color-ink)]" : "font-medium text-slate hover:text-ink"}`}
           >
-            {c ?? "All"}
+            {t === "all" ? "All" : CATEGORY_LABEL[t]}
           </button>
         ))}
       </div>
-      {tools === undefined ? (
-        <Loading />
-      ) : tools.length === 0 ? (
-        <Empty>No tools in this category yet.</Empty>
+
+      {items === undefined ? (
+        <RowSkeleton rows={6} />
+      ) : items.length === 0 ? (
+        <Empty
+          action={
+            <Button asChild>
+              <Link href="/listings">Lend something</Link>
+            </Button>
+          }
+        >
+          Nothing to borrow yet. List something you own and your neighbours will see it here.
+        </Empty>
+      ) : shown.length === 0 ? (
+        <Empty>
+          {query.trim()
+            ? `Nothing matches "${query.trim()}". Try a shorter word, or look in All.`
+            : `Nothing in ${tab === "all" ? "here" : CATEGORY_LABEL[tab]} yet.`}
+        </Empty>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {tools.map((tool) => (
-            <ToolCard key={tool._id} tool={tool} />
+        <ul>
+          {shown.map((item) => (
+            <ItemRow
+              key={item._id}
+              href={`/tools/${item._id}`}
+              name={item.name}
+              category={item.category}
+              sub={item.isMine ? "You" : item.owner.name}
+              status={<LoopStatus loop={item.loop} now={now} />}
+            />
           ))}
-        </div>
+        </ul>
       )}
     </>
-  );
-}
-
-type Tool = NonNullable<ReturnType<typeof useQuery<typeof api.tools.list>>>[number];
-
-function ToolCard({ tool }: { tool: Tool }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Card className="flex flex-col">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-medium">{tool.name}</h3>
-          <p className="text-sm text-stone-500 capitalize">
-            {tool.category} · {tool.condition}
-          </p>
-        </div>
-        <AvailabilityBadge value={tool.availability} />
-      </div>
-      {tool.description && <p className="mt-2 text-sm text-stone-700">{tool.description}</p>}
-      <div className="mt-auto flex items-center justify-between gap-3 pt-4 text-sm text-stone-500">
-        <span>
-          {tool.isMine ? "Your listing" : <>Lent by {tool.owner.name}</>} {tool.owner.trustedLender && <TrustedBadge />}
-        </span>
-        {!tool.isMine && !open && (
-          <Button variant="secondary" onClick={() => setOpen(true)}>
-            Ask to borrow
-          </Button>
-        )}
-      </div>
-      {open && <BorrowForm toolId={tool._id} onDone={() => setOpen(false)} />}
-    </Card>
-  );
-}
-
-function BorrowForm({ toolId, onDone }: { toolId: Id<"tools">; onDone: () => void }) {
-  const today = todayUtc();
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
-  const [sent, setSent] = useState(false);
-  const request = useAction(useMutation(api.loans.request));
-
-  if (sent)
-    return (
-      <p className="mt-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
-        Request sent. The lender gets an email; follow it in <Link href="/requests" className="underline">My requests</Link>.
-      </p>
-    );
-
-  return (
-    <form
-      className="mt-3 space-y-2 rounded-lg bg-stone-50 p-3"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (await request.run({ toolId, startDate, endDate })) setSent(true);
-      }}
-    >
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-stone-600">
-          From
-          <input type="date" required min={today} value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
-        </label>
-        <label className="text-xs text-stone-600">
-          Until (inclusive)
-          <input type="date" required min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
-        </label>
-      </div>
-      <ErrorText>{request.error}</ErrorText>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={request.pending}>
-          {request.pending ? "Sending…" : "Send request"}
-        </Button>
-      </div>
-    </form>
   );
 }
