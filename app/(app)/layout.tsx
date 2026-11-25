@@ -16,7 +16,7 @@ const LINKS = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const ready = useStoreUser();
+  const { ready, failed } = useStoreUser();
   const me = useQuery(api.users.me, ready ? {} : "skip");
   const pathname = usePathname();
   const links = me?.role === "admin" ? [...LINKS, { href: "/admin", label: "Admin" }] : LINKS;
@@ -42,7 +42,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <UserButton />
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">{ready && me ? children : <Loading />}</main>
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        {ready && me ? (
+          children
+        ) : failed ? (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            We couldn&apos;t connect your account to LendLoop. Try signing out and in again. (Setting this up? Check the
+            Clerk &ldquo;convex&rdquo; JWT template and CLERK_JWT_ISSUER_DOMAIN on Convex.)
+          </p>
+        ) : (
+          <Loading />
+        )}
+      </main>
     </div>
   );
 }

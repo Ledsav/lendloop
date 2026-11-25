@@ -6,23 +6,25 @@ import { api } from "@/convex/_generated/api";
 
 /**
  * Makes sure the signed-in Clerk user has a row in Convex before the app queries anything.
- * Returns true once it does.
+ * `ready` turns true once it does; `failed` means Convex refused the user (usually a Clerk/Convex
+ * configuration problem: the "convex" JWT template or CLERK_JWT_ISSUER_DOMAIN).
  */
 export function useStoreUser() {
-  const { isAuthenticated } = useConvexAuth();
+  const { isLoading, isAuthenticated } = useConvexAuth();
   const store = useMutation(api.users.store);
-  const [storedFor, setStoredFor] = useState<boolean>(false);
+  const [stored, setStored] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
-    store({}).then(() => {
-      if (!cancelled) setStoredFor(true);
-    });
+    store({})
+      .then(() => !cancelled && setStored(true))
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
   }, [isAuthenticated, store]);
 
-  return isAuthenticated && storedFor;
+  return { ready: isAuthenticated && stored, failed: failed || (!isLoading && !isAuthenticated) };
 }
