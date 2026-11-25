@@ -1,4 +1,4 @@
-import { Badge } from "./ui";
+import { Badge } from "./legacy-ui";
 
 export function AvailabilityBadge({ value }: { value: "available" | "on_loan" | "overdue" }) {
   if (value === "available") return <Badge tone="green">Available</Badge>;

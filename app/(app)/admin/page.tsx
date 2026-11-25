@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { AvailabilityBadge } from "@/components/badges";
 import { LoanCard } from "@/components/LoanCard";
-import { Button, Card, Empty, ErrorText, Loading, PageHeader } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Loading, PageHeader } from "@/components/legacy-ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { timeAgo } from "@/lib/format";

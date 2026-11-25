@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { LoanCard, type LoanRow } from "@/components/LoanCard";
-import { Button, Empty, ErrorText, Loading, PageHeader } from "@/components/ui";
+import { Button, Empty, ErrorText, Loading, PageHeader } from "@/components/legacy-ui";
 import { api } from "@/convex/_generated/api";
 import { todayUtc } from "@/lib/format";
 import { useAction } from "@/lib/useAction";

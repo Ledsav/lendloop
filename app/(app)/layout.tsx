@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Loading } from "@/components/ui";
+import { Loading } from "@/components/legacy-ui";
 import { api } from "@/convex/_generated/api";
 import { useStoreUser } from "@/lib/useStoreUser";
 

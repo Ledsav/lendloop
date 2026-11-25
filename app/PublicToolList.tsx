@@ -2,7 +2,7 @@
 
 import { usePreloadedQuery, type Preloaded } from "convex/react";
 import type { api } from "@/convex/_generated/api";
-import { Empty } from "@/components/ui";
+import { Empty } from "@/components/legacy-ui";
 
 export function PublicToolList({ preloaded }: { preloaded: Preloaded<typeof api.tools.listPublic> }) {
   const tools = usePreloadedQuery(preloaded);

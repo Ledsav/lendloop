@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import type { api } from "@/convex/_generated/api";
 import { formatDate, timeAgo } from "@/lib/format";
 import { LoanStatusBadge, TrustedBadge } from "./badges";
-import { Card } from "./ui";
+import { Card } from "./legacy-ui";
 
 export type LoanRow = FunctionReturnType<typeof api.loans.myRequests>[number];
 

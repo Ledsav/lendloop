@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CATEGORIES, CONDITIONS, type Category, type Condition } from "@/convex/lib/validators";
-import { Button, ErrorText, inputClass } from "./ui";
+import { Button, ErrorText, inputClass } from "./legacy-ui";
 
 export type ListingValues = { name: string; category: Category; condition: Condition; description: string };
 

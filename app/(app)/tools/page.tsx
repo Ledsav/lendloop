@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useState } from "react";
 import { AvailabilityBadge, TrustedBadge } from "@/components/badges";
-import { Button, Card, Empty, ErrorText, inputClass, Loading, PageHeader } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, inputClass, Loading, PageHeader } from "@/components/legacy-ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CATEGORIES, type Category } from "@/convex/lib/validators";

@@ -1,7 +1,23 @@
+/* Clerk's styles sit in their own layer, under the utilities, so our classes win. */
+@layer theme, base, clerk, components, utilities;
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, serif;
+
+  /* LendLoop: one quiet palette. Ultramarine only for a loan in progress (and focus), red only for late. */
+  --color-ink: #1b2030;
+  --color-slate: #646a76;
+  --color-plate: #ecebe7;
+  --color-surface: #ffffff;
+  --color-field: #f3f3f0;
+  --color-hairline: #e3e2de;
+  --color-ultramarine: #2a44c8;
+  --color-late: #b42318;
+
+  /* Old palette, still used by pages that haven't moved to the tokens yet. */
   --color-brand-50: #ecfdf5;
   --color-brand-100: #d1fae5;
   --color-brand-600: #059669;
@@ -9,6 +25,93 @@
   --color-brand-800: #065f46;
 }
 
-body {
-  font-family: var(--font-sans);
+/* shadcn/ui's semantic colours, pointed at the tokens. */
+:root {
+  --radius: 12px;
+  --background: var(--color-surface);
+  --foreground: var(--color-ink);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-field);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-field);
+  --muted-foreground: var(--color-slate);
+  --accent: var(--color-plate);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-late);
+  --border: var(--color-hairline);
+  --input: var(--color-hairline);
+  --ring: var(--color-ultramarine);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-hairline);
+  }
+  body {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    font-feature-settings: "tnum";
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ultramarine);
+    outline-offset: 2px;
+  }
+}
+
+/* The landing dial draws its loop once; nothing else moves on its own. */
+@keyframes loop-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.loop-draw {
+  animation: loop-draw 2.4s cubic-bezier(0.6, 0.1, 0.3, 1) 0.4s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AvailabilityBadge } from "@/components/badges";
 import { ListingForm } from "@/components/ListingForm";
-import { Button, Card, Empty, ErrorText, Loading, PageHeader } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Loading, PageHeader } from "@/components/legacy-ui";
 import { api } from "@/convex/_generated/api";
 import { useAction } from "@/lib/useAction";
 
