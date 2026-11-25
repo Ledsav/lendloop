@@ -50,6 +50,11 @@ your machine (no account needed) or in the cloud.
 The easiest setup runs everything on your machine, so Convex and n8n can call each other. A cloud
 Convex deployment can't reach `localhost`: see [Using a cloud Convex deployment](#using-a-cloud-convex-deployment).
 
+Nothing to install, or not enough RAM for Docker? [Run it in GitHub Codespaces](#run-it-in-github-codespaces):
+the same steps, in a cloud machine in your browser.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Ledsav/lendloop)
+
 ### 1. Install
 
 ```bash
@@ -163,6 +168,25 @@ A cloud deployment can't call `localhost:5678`. Either expose n8n with a tunnel 
 `cloudflared tunnel --url http://localhost:5678`) and use that URL in `N8N_LOAN_EVENTS_WEBHOOK_URL`,
 or use n8n Cloud. In both cases set `LENDLOOP_CONVEX_SITE_URL` in `.env.n8n` to
 `https://<your-deployment>.convex.site`.
+
+### Run it in GitHub Codespaces
+
+The repository includes a dev container (`.devcontainer/devcontainer.json`): Node 22 and Docker, on
+a 2-core, 8 GB machine, which fits in GitHub's free monthly Codespaces hours. Creating the codespace
+runs `npm ci` and `scripts/codespaces-env.sh`, which points the app at Convex's forwarded URL
+(in `.env.development.local`) and makes ports 3000 and 3210 public, so your browser can reach the
+app and Convex. Sign-in is still required in the app; n8n and Mailpit stay private to you.
+
+Then follow steps 1 to 6 above in the codespace's terminal, with two differences:
+
+- **Clerk keys:** the CLI's browser sign-in can't call back into a codespace, so copy the
+  publishable and secret keys from the Clerk dashboard (API keys) into `.env.local`.
+- **Addresses:** open the app, Mailpit and n8n from the **Ports** tab (`https://<codespace>-3000.app.github.dev`
+  and so on), not `localhost`. GitHub shows a one-time warning page before each forwarded address:
+  choose **Continue**. Webhook and Convex addresses inside the codespace stay as in step 3.
+
+Run `npx convex dev` and `npm run dev` from the codespace's own terminal: `next.config.ts` reads the
+codespace's name from the environment to trust its forwarded address, and only that one.
 
 ## Environment variables
 
