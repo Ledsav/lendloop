@@ -36,6 +36,7 @@ export function RequestDates({
   const end = range?.to ? localDateToIso(range.to) : undefined;
   const problem = rangeProblem(start, end, booked, today);
   const last = end ?? start;
+  const taken = booked.map((b) => ({ from: isoToLocalDate(b.startDate), to: isoToLocalDate(b.endDate) }));
 
   return (
     <div>
@@ -45,10 +46,10 @@ export function RequestDates({
         onSelect={setRange}
         weekStartsOn={1}
         defaultMonth={isoToLocalDate(today)}
-        disabled={[
-          { before: isoToLocalDate(today) },
-          ...booked.map((b) => ({ from: isoToLocalDate(b.startDate), to: isoToLocalDate(b.endDate) })),
-        ]}
+        disabled={[{ before: isoToLocalDate(today) }, ...taken]}
+        // Past days just fade; days someone already has are struck through.
+        modifiers={{ booked: taken }}
+        modifiersClassNames={{ booked: "[&_button]:line-through [&_button]:decoration-slate" }}
         excludeDisabled
         resetOnSelect
       />

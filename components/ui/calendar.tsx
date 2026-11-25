@@ -125,7 +125,7 @@ function Calendar({
           defaultClassNames.outside
         ),
         disabled: cn(
-          "text-slate/70 [&_button]:line-through [&_button]:decoration-slate/50",
+          "text-slate/40",
           defaultClassNames.disabled
         ),
         hidden: cn("invisible", defaultClassNames.hidden),
