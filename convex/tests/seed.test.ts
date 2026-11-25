@@ -26,10 +26,12 @@ describe("devtools:seed", () => {
 
   test("refuses until both real accounts exist, and writes nothing", async () => {
     const { t } = await setup();
-    await expect(
-      t.mutation(internal.devtools.seed, { realEmails: ["alice@example.com", "nobody@example.com"] }),
-    ).rejects.toThrow("Sign in once");
+    const missing = { realEmails: ["alice@example.com", "nobody@example.com"] };
+    await expect(t.mutation(internal.devtools.seed, missing)).rejects.toThrow("Sign in once");
     expect(await t.run((ctx) => ctx.db.query("tools").collect())).toHaveLength(0);
+    await t.mutation(internal.devtools.seed, real);
+    await expect(t.action(internal.devtools.reseed, missing)).rejects.toThrow("Sign in once"); // checked before deleting
+    expect(await t.run((ctx) => ctx.db.query("tools").collect())).toHaveLength(29);
   });
 
   test("fills every screen: people, every category, loans in every state, nothing emailed", async () => {
@@ -79,7 +81,8 @@ describe("devtools:seed", () => {
     expect(await t.mutation(internal.devtools.seed, real)).toEqual({ ...first, seeded: false });
     const mixer = (await carol.query(api.tools.list, {})).find((x) => x.name === "Stand mixer")!;
     await carol.mutation(api.loans.request, { toolId: mixer._id, startDate: "2026-06-25", endDate: "2026-06-26" });
-    expect(await t.mutation(internal.devtools.seed, { ...real, fresh: true })).toEqual(first);
+    // Starting over runs in batches (one mutation can't delete and rewrite it all within Convex's limit).
+    expect(await t.action(internal.devtools.reseed, real)).toEqual(first);
     const orphans = await t.run(async (ctx) => {
       const loans = await ctx.db.query("loans").collect();
       return (await Promise.all(loans.map((l) => ctx.db.get("tools", l.toolId)))).filter((x) => !x).length;

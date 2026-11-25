@@ -172,8 +172,8 @@ first (`lena+clerk_test@example.com` and `sam+clerk_test@example.com`, code 4242
 
 ```bash
 npx convex env set LENDLOOP_DEV_TOOLS true
-npx convex run devtools:seed                       # once; running it again changes nothing
-npx convex run devtools:seed '{"fresh": true}'     # start over, with dates relative to today
+npx convex run devtools:seed      # once; running it again changes nothing
+npx convex run devtools:reseed    # start over, with dates relative to today
 ```
 
 It adds ten neighbours who exist only in Convex (they can't sign in), 29 things to borrow in every
@@ -220,7 +220,7 @@ codespace's name from the environment to trust its forwarded address, and only t
 | `N8N_LOAN_EVENTS_WEBHOOK_URL` | Convex | The n8n webhook that receives loan events |
 | `LENDLOOP_TO_N8N_SECRET` | Convex and `.env.n8n` | HMAC secret, Convex → n8n |
 | `N8N_TO_LENDLOOP_SECRET` | Convex and `.env.n8n` | HMAC secret, n8n → Convex |
-| `LENDLOOP_DEV_TOOLS` | Convex (development only) | `true` enables `devtools:backdateLoan` and `devtools:seed` |
+| `LENDLOOP_DEV_TOOLS` | Convex (development only) | `true` enables `devtools:backdateLoan`, `devtools:seed` and `devtools:reseed` |
 | `N8N_ENCRYPTION_KEY` | `.env.n8n` | Encrypts credentials stored in n8n |
 | `LENDLOOP_CONVEX_SITE_URL` | `.env.n8n` | Base URL of the Convex HTTP actions (`.convex.site`) |
 | `LENDLOOP_MAIL_FROM`, `LENDLOOP_OPS_EMAIL` | `.env.n8n` | Sender address; where failure alerts go |

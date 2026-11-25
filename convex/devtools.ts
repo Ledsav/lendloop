@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { addDays, today as todayOf } from "./lib/dates";
 import { CURRENT_LOANS, FAILED_EMAIL_ITEM, ITEMS, NEIGHBOURS, PEOPLE, REAL_KEYS, historyFor } from "./lib/seedData";
 import type { EventType } from "./lib/validators";
@@ -40,56 +41,99 @@ function counts(rows: { table: SeedTable }[]) {
   return { people: n("users"), items: n("tools"), loans: n("loans") };
 }
 
-/** Removes the sample data, plus any loan someone made on a sample item since (and its history). */
-async function unseed(ctx: MutationCtx, rows: Doc<"seedRows">[]) {
-  const listed = new Set(rows.map((r) => r.docId));
-  for (const row of rows.filter((r) => r.table === "tools")) {
-    const toolId = ctx.db.normalizeId("tools", row.docId);
-    if (!toolId) continue;
-    const loans = await ctx.db
-      .query("loans")
-      .withIndex("by_tool_status", (q) => q.eq("toolId", toolId))
-      .collect();
-    for (const loan of loans.filter((l) => !listed.has(l._id))) {
-      const events = await ctx.db.query("outbox").withIndex("by_loan", (q) => q.eq("loanId", loan._id)).collect();
-      for (const e of events) await ctx.db.delete("outbox", e._id);
-      const reminders = await ctx.db.query("reminders").withIndex("by_loan", (q) => q.eq("loanId", loan._id)).collect();
-      for (const r of reminders) await ctx.db.delete("reminders", r._id);
-      await ctx.db.delete("loans", loan._id);
-    }
-  }
-  for (const row of rows) {
-    const id = ctx.db.normalizeId(row.table, row.docId);
-    if (id && (await ctx.db.get(id))) await ctx.db.delete(id);
-    await ctx.db.delete("seedRows", row._id);
-  }
+/** The two real accounts that own and borrow sample items; a clear error until both have signed in. */
+async function findRealAccounts(ctx: QueryCtx | MutationCtx, realEmails: string[]) {
+  const users = await ctx.db.query("users").collect();
+  const matches = realEmails.map((e) => users.filter((u) => u.email.toLowerCase() === e.toLowerCase()));
+  if (realEmails.length !== REAL_KEYS.length || matches.some((m) => m.length !== 1))
+    throw new ConvexError(
+      `Sign in once as each of these accounts first, then run the seed again: ${realEmails.join(", ")}. ` +
+        "Or pass realEmails with two accounts that have signed in.",
+    );
+  return matches.map((m) => m[0]);
 }
+
+const UNSEED_BATCH = 40;
+
+async function deleteLoanWithHistory(ctx: MutationCtx, loanId: Id<"loans">) {
+  const events = await ctx.db.query("outbox").withIndex("by_loan", (q) => q.eq("loanId", loanId)).collect();
+  for (const e of events) await ctx.db.delete("outbox", e._id);
+  const reminders = await ctx.db.query("reminders").withIndex("by_loan", (q) => q.eq("loanId", loanId)).collect();
+  for (const r of reminders) await ctx.db.delete("reminders", r._id);
+  await ctx.db.delete("loans", loanId);
+}
+
+/**
+ * Removes up to one batch of sample data, newest rows first: loans (with their emails and
+ * reminders) go before the items, so by the time an item goes, any loan still on it was made by
+ * someone since, and goes with it. Returns whether anything is left.
+ */
+export const unseedBatch = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    requireDevTools();
+    const rows = await ctx.db.query("seedRows").order("desc").take(UNSEED_BATCH);
+    for (const row of rows) {
+      const id = ctx.db.normalizeId(row.table, row.docId);
+      if (id && (await ctx.db.get(id))) {
+        if (row.table === "loans") await deleteLoanWithHistory(ctx, id as Id<"loans">);
+        else {
+          if (row.table === "tools") {
+            const left = await ctx.db
+              .query("loans")
+              .withIndex("by_tool_status", (q) => q.eq("toolId", id as Id<"tools">))
+              .collect();
+            for (const loan of left) await deleteLoanWithHistory(ctx, loan._id);
+          }
+          await ctx.db.delete(id);
+        }
+      }
+      await ctx.db.delete("seedRows", row._id);
+    }
+    return { done: rows.length < UNSEED_BATCH && (await ctx.db.query("seedRows").first()) === null };
+  },
+});
+
+export const checkRealAccounts = internalQuery({
+  args: { realEmails: v.optional(v.array(v.string())) },
+  handler: async (ctx, { realEmails = DEFAULT_REAL_EMAILS }) => {
+    requireDevTools();
+    await findRealAccounts(ctx, realEmails);
+    return null;
+  },
+});
+
+/**
+ * Starts the sample data over, with dates relative to today: removes it in batches (one mutation
+ * can't delete and rewrite it all within Convex's time limit), then seeds again.
+ *   npx convex run devtools:reseed
+ */
+export const reseed = internalAction({
+  args: { realEmails: v.optional(v.array(v.string())) },
+  handler: async (ctx, args): Promise<{ seeded: boolean; people: number; items: number; loans: number }> => {
+    requireDevTools();
+    await ctx.runQuery(internal.devtools.checkRealAccounts, args); // before deleting anything
+    while (!(await ctx.runMutation(internal.devtools.unseedBatch, {})).done);
+    return await ctx.runMutation(internal.devtools.seed, args);
+  },
+});
 
 /**
  * Fills a development deployment with sample data: ten neighbours (who exist only here and can't
  * sign in), 29 things to borrow in every category, and loans in every state with their history.
  * The history (emails, reminders) is written as already sent: nothing is scheduled and nothing is
- * emailed. Running it again does nothing; `{"fresh": true}` replaces it, with dates relative to
+ * emailed. Running it again does nothing; devtools:reseed starts it over, with dates relative to
  * today. The two real accounts (the Clerk test users by default) must have signed in once.
  *   npx convex env set LENDLOOP_DEV_TOOLS true
  *   npx convex run devtools:seed
- *   npx convex run devtools:seed '{"fresh": true}'
  */
 export const seed = internalMutation({
-  args: { fresh: v.optional(v.boolean()), realEmails: v.optional(v.array(v.string())) },
-  handler: async (ctx, { fresh, realEmails = DEFAULT_REAL_EMAILS }) => {
+  args: { realEmails: v.optional(v.array(v.string())) },
+  handler: async (ctx, { realEmails = DEFAULT_REAL_EMAILS }) => {
     requireDevTools();
-    const users = await ctx.db.query("users").collect();
-    const matches = realEmails.map((e) => users.filter((u) => u.email.toLowerCase() === e.toLowerCase()));
-    if (realEmails.length !== REAL_KEYS.length || matches.some((m) => m.length !== 1))
-      throw new ConvexError(
-        `Sign in once as each of these accounts first, then run the seed again: ${realEmails.join(", ")}. ` +
-          "Or pass realEmails with two accounts that have signed in.",
-      );
-
+    const real = await findRealAccounts(ctx, realEmails);
     const previous = await ctx.db.query("seedRows").collect();
-    if (previous.length > 0 && !fresh) return { seeded: false, ...counts(previous) };
-    if (fresh) await unseed(ctx, previous);
+    if (previous.length > 0) return { seeded: false, ...counts(previous) };
 
     const written: { table: SeedTable }[] = [];
     const record = async (table: SeedTable, docId: string) => {
@@ -103,7 +147,7 @@ export const seed = internalMutation({
     const at = (iso: string, hour: number) => Date.parse(`${iso}T00:00:00Z`) + hour * HOUR;
 
     const people = new Map<string, Id<"users">>();
-    REAL_KEYS.forEach((key, i) => people.set(key, matches[i][0]._id));
+    REAL_KEYS.forEach((key, i) => people.set(key, real[i]._id));
     await ctx.db.patch("users", people.get("lena")!, { trustedLender: true }); // as in the mockups
     for (const n of NEIGHBOURS) {
       const id = await ctx.db.insert("users", {
@@ -132,7 +176,8 @@ export const seed = internalMutation({
     }
 
     const email = async (loanId: Id<"loans">, type: EventType, recipient: "owner" | "borrower", when: number, failed = false) => {
-      const id = await ctx.db.insert("outbox", {
+      // Emails and reminders aren't recorded in seedRows: they go when their loan goes.
+      await ctx.db.insert("outbox", {
         type,
         loanId,
         recipient,
@@ -142,7 +187,6 @@ export const seed = internalMutation({
         lastError: failed ? "n8n answered HTTP 502" : undefined,
         updatedAt: when + MINUTE,
       });
-      await record("outbox", id);
     };
 
     type Spec = {
@@ -193,7 +237,7 @@ export const seed = internalMutation({
         for (let d = addDays(endDate, 1); d <= today; d = addDays(d, 1)) {
           const sentAt = at(d, 9);
           if (sentAt > now) break;
-          const id = await ctx.db.insert("reminders", {
+          await ctx.db.insert("reminders", {
             key: `${loanId}:${d}`,
             loanId,
             date: d,
@@ -201,7 +245,6 @@ export const seed = internalMutation({
             writes: 1,
             updatedAt: sentAt,
           });
-          await record("reminders", id);
         }
       }
     };
