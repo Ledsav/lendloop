@@ -2,17 +2,22 @@
 
 import { usePreloadedQuery, type Preloaded } from "convex/react";
 import type { api } from "@/convex/_generated/api";
-import { Empty } from "@/components/legacy-ui";
+import { CATEGORY_LABEL } from "@/lib/format";
 
+/** What's free right now: item names and categories only, nothing about who owns them. */
 export function PublicToolList({ preloaded }: { preloaded: Preloaded<typeof api.tools.listPublic> }) {
   const tools = usePreloadedQuery(preloaded);
-  if (tools.length === 0) return <Empty>Nothing listed yet. Be the first to lend something.</Empty>;
+  if (tools.length === 0)
+    return <p className="text-[15px] text-slate">Nothing is free right now. Sign in and list the first thing.</p>;
   return (
-    <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {tools.map((tool, i) => (
-        <li key={`${tool.name}-${i}`} className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-          <p className="font-medium">{tool.name}</p>
-          <p className="text-sm text-stone-500 capitalize">{tool.category}</p>
+    <ul className="grid lg:grid-cols-3 lg:gap-x-10">
+      {tools.slice(0, 9).map((tool, i) => (
+        <li
+          key={`${tool.name}-${i}`}
+          className={`${i >= 5 ? "hidden lg:flex" : "flex"} justify-between gap-3 border-b border-hairline py-3 text-[15px] lg:py-[13px] lg:text-[16px]`}
+        >
+          <span className="font-semibold">{tool.name}</span>
+          <span className="text-slate">{CATEGORY_LABEL[tool.category]}</span>
         </li>
       ))}
     </ul>
