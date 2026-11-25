@@ -4,9 +4,9 @@ import { weekday } from "@/lib/format";
 import { arcPath, dayTicks, itemStatus, loanFraction, pos } from "@/lib/loop";
 
 const W = 344;
-const H = 300;
+const H = 312; // room for a day label at the very top
 const CX = W / 2;
-const CY = 146;
+const CY = 158;
 const R = 108;
 const PASSED = "#9aa6e6";
 const AHEAD = "#dddcd7";

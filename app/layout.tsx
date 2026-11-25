@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Newsreader } from "next/font/google";
+import { DrawingDefs } from "@/components/items/drawings";
 import { Toaster } from "@/components/ui/sonner";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import { ConvexClientProvider } from "./ConvexClientProvider";
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-GB" className={`${hanken.variable} ${newsreader.variable} h-full antialiased`}>
       <body className="min-h-full bg-surface text-ink">
+        <DrawingDefs />
         <ClerkProvider appearance={clerkAppearance}>
           <ConvexClientProvider>
             {children}
