@@ -67,6 +67,15 @@ export async function loopFor(
   };
 }
 
+/** How many loans a lender has seen through to the end ("lent N times"). */
+export async function lentCount(ctx: Ctx, ownerId: Id<"users">): Promise<number> {
+  const loans = await ctx.db
+    .query("loans")
+    .withIndex("by_owner", (q) => q.eq("ownerId", ownerId))
+    .collect();
+  return loans.filter((l) => l.status === "returned").length;
+}
+
 export const isOverdue = (loan: Doc<"loans">, now: number = Date.now()) =>
   loan.status === "approved" && loan.endDate < today(now);
 

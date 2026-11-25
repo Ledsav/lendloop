@@ -4,7 +4,8 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { isAdmin, requireUser } from "./lib/auth";
 import { today } from "./lib/dates";
 import { emitLoanEvent } from "./lib/events";
-import { availability, loopFor, toolLoans } from "./lib/loans";
+import { booked, nextFree, usage } from "./lib/itemStats";
+import { availability, lentCount, loopFor, toolLoans } from "./lib/loans";
 import { category, condition } from "./lib/validators";
 
 const listingFields = {
@@ -69,6 +70,50 @@ export const list = query({
       }),
     );
     return rows.sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
+/**
+ * The item page. Signed-in only, like the browse list. Dates of other people's loans are shown (to
+ * pick free days), but who has the item only to its owner, that borrower and admins. Null for an id
+ * that isn't a listing (any more), so an old link shows a plain "not here" page.
+ */
+export const get = query({
+  args: { id: v.string() },
+  handler: async (ctx, { id }) => {
+    const viewer = await requireUser(ctx);
+    const toolId = ctx.db.normalizeId("tools", id);
+    const tool = toolId && (await ctx.db.get("tools", toolId));
+    if (!tool || tool.removedAt !== undefined) return null;
+    const date = today();
+    const [owner, loans] = await Promise.all([ctx.db.get("users", tool.ownerId), toolLoans(ctx, tool._id)]);
+    const isMine = tool.ownerId === viewer._id;
+    return {
+      _id: tool._id,
+      name: tool.name,
+      category: tool.category,
+      condition: tool.condition,
+      description: tool.description,
+      isMine,
+      owner: {
+        name: owner?.name ?? "?",
+        trustedLender: owner?.trustedLender ?? false,
+        lentCount: await lentCount(ctx, tool.ownerId),
+      },
+      loop: await loopFor(ctx, viewer, tool, loans, date),
+      usage: usage(loans, date),
+      nextFree: nextFree(loans, date),
+      booked: booked(loans, date),
+      myLoans: loans
+        .filter((l) => l.borrowerId === viewer._id && l.endDate >= date)
+        .flatMap((l) =>
+          l.status === "requested" || l.status === "approved"
+            ? [{ _id: l._id, startDate: l.startDate, endDate: l.endDate, status: l.status }]
+            : [],
+        ),
+      pendingRequests: isMine ? loans.filter((l) => l.status === "requested").length : 0,
+      today: date,
+    };
   },
 });
 
