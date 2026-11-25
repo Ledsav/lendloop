@@ -18,4 +18,13 @@ export const clerkAppearance = {
     fontFamily: "var(--font-hanken), system-ui, sans-serif",
     borderRadius: "12px",
   },
+  // No arrows on buttons: the button's words say what happens.
+  elements: { buttonArrowIcon: { display: "none" } },
 } as const;
+
+/** Clerk's sign-in words, plainer than its defaults (and with the product's name spelled right). */
+export const clerkLocalization = {
+  signIn: {
+    start: { title: "Sign in to LendLoop", subtitle: "With your email. We send you a code, no password." },
+  },
+};

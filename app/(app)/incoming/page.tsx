@@ -5,7 +5,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { LoanRow } from "@/components/loans/LoanRow";
-import { Empty, ErrorText, PageTitle, RowSkeleton, SectionTitle } from "@/components/states";
+import { LoanSection } from "@/components/loans/LoanSection";
+import { Empty, ErrorText, PageTitle, RowSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { today as utcDay } from "@/convex/lib/dates";
@@ -43,17 +44,15 @@ export default function IncomingPage() {
     );
 
   const g = groupLoans(loans, today);
-  const section = (title: string, list: LoanRowData[], past = false) =>
-    list.length > 0 && (
-      <section>
-        <SectionTitle>{title}</SectionTitle>
-        <ul>
-          {list.map((loan) => (
-            <IncomingLoan key={loan._id} loan={loan} today={today} now={now} past={past} />
-          ))}
-        </ul>
-      </section>
-    );
+  const section = (title: string, list: LoanRowData[], past = false) => (
+    <LoanSection
+      title={title}
+      loans={list}
+      limit={past ? 10 : undefined}
+      moreLabel="past loans"
+      render={(loan) => <IncomingLoan key={loan._id} loan={loan} today={today} now={now} past={past} />}
+    />
+  );
 
   return (
     <>

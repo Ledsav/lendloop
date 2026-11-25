@@ -7,6 +7,7 @@ import { ConfirmAction } from "@/components/ConfirmAction";
 import { ItemRow } from "@/components/items/ItemRow";
 import { LoopStatus } from "@/components/items/StatusColumn";
 import { LoanRow } from "@/components/loans/LoanRow";
+import { LoanSection } from "@/components/loans/LoanSection";
 import { Empty, ErrorText, PageTitle, RowSkeleton, SectionTitle } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -68,20 +69,24 @@ function AdminConsole() {
         )}
       </section>
 
-      <section>
-        <SectionTitle>Loans</SectionTitle>
-        {loans === undefined ? (
+      {loans === undefined ? (
+        <section>
+          <SectionTitle>Loans</SectionTitle>
           <RowSkeleton rows={4} dense />
-        ) : ordered.length === 0 ? (
+        </section>
+      ) : ordered.length === 0 ? (
+        <section>
+          <SectionTitle>Loans</SectionTitle>
           <p className="py-3 text-[15px] text-slate">No loans yet.</p>
-        ) : (
-          <ul>
-            {ordered.map((loan) => (
-              <LoanRow key={loan._id} loan={loan} today={today} now={now} dense collapsed />
-            ))}
-          </ul>
-        )}
-      </section>
+        </section>
+      ) : (
+        <LoanSection
+          title="Loans"
+          loans={ordered}
+          limit={12}
+          render={(loan) => <LoanRow key={loan._id} loan={loan} today={today} now={now} dense collapsed />}
+        />
+      )}
 
       <section>
         <SectionTitle>Listings</SectionTitle>
