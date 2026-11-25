@@ -14,6 +14,7 @@ Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and b
 
 - [What it does](#what-it-does)
 - [Local setup](#local-setup)
+  - [Sample data](#7-sample-data)
 - [Environment variables](#environment-variables)
 - [Architecture](#architecture)
 - [Roles and access control](#roles-and-access-control)
@@ -162,6 +163,25 @@ npx convex run users:setRole '{"email": "you@example.com", "role": "admin"}'
 
    Run it twice: the second run sends nothing (one reminder per loan per day).
 
+### 7. Sample data
+
+To see every screen full, seed the development deployment. Sign in once as the two Clerk test users
+first (`lena+clerk_test@example.com` and `sam+clerk_test@example.com`, code 424242), then:
+
+```bash
+npx convex env set LENDLOOP_DEV_TOOLS true
+npx convex run devtools:seed                       # once; running it again changes nothing
+npx convex run devtools:seed '{"fresh": true}'     # start over, with dates relative to today
+```
+
+It adds ten neighbours who exist only in Convex (they can't sign in), 29 things to borrow in every
+category, and loans in every state: requested, out, late, coming up, returned (twelve weeks of
+history and more), declined and cancelled. Lena and Sam own and borrow some of them, and one
+approval email is marked failed so the admin page has something to retry. The loans' emails and
+reminders are written straight into their history as already sent: nothing is scheduled and nothing
+is emailed. With your own Clerk accounts, name two that have signed in:
+`npx convex run devtools:seed '{"realEmails": ["you@example.com", "friend@example.com"]}'`.
+
 ### Using a cloud Convex deployment
 
 A cloud deployment can't call `localhost:5678`. Either expose n8n with a tunnel (for example
@@ -198,7 +218,7 @@ codespace's name from the environment to trust its forwarded address, and only t
 | `N8N_LOAN_EVENTS_WEBHOOK_URL` | Convex | The n8n webhook that receives loan events |
 | `LENDLOOP_TO_N8N_SECRET` | Convex and `.env.n8n` | HMAC secret, Convex → n8n |
 | `N8N_TO_LENDLOOP_SECRET` | Convex and `.env.n8n` | HMAC secret, n8n → Convex |
-| `LENDLOOP_DEV_TOOLS` | Convex (development only) | `true` enables `devtools:backdateLoan` |
+| `LENDLOOP_DEV_TOOLS` | Convex (development only) | `true` enables `devtools:backdateLoan` and `devtools:seed` |
 | `N8N_ENCRYPTION_KEY` | `.env.n8n` | Encrypts credentials stored in n8n |
 | `LENDLOOP_CONVEX_SITE_URL` | `.env.n8n` | Base URL of the Convex HTTP actions (`.convex.site`) |
 | `LENDLOOP_MAIL_FROM`, `LENDLOOP_OPS_EMAIL` | `.env.n8n` | Sender address; where failure alerts go |

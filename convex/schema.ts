@@ -79,4 +79,11 @@ export default defineSchema({
   })
     .index("by_key", ["key"])
     .index("by_loan", ["loanId"]),
+
+  // Development only: every row devtools:seed wrote, so a second run is a no-op and
+  // `{"fresh": true}` can remove exactly the sample data before writing it again.
+  seedRows: defineTable({
+    table: v.union(v.literal("users"), v.literal("tools"), v.literal("loans"), v.literal("outbox"), v.literal("reminders")),
+    docId: v.string(),
+  }),
 });
