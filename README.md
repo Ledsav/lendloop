@@ -67,15 +67,22 @@ them in `.env.n8n`.
    enough).
 2. Turn on the **Convex integration** (Configure → Integrations → Convex). It creates the JWT
    template named `convex` that Convex verifies, and shows your **Frontend API URL** (the issuer).
-3. Copy the publishable key and secret key into `.env.local`.
+3. Copy the publishable key and secret key into `.env.local`, or let the Clerk CLI write them:
+
+   ```bash
+   npx -y clerk@latest auth login
+   npx -y clerk@latest link --app <your application id>
+   npx -y clerk@latest env pull
+   ```
 
 ### 3. Convex
 
 ```bash
-npx convex dev --local        # or `npx convex dev` and pick a cloud dev deployment
+npx convex dev
 ```
 
-This writes `CONVEX_DEPLOYMENT` and `NEXT_PUBLIC_CONVEX_URL` to `.env.local` and pushes the
+When it asks, pick **Start without an account (run Convex locally)**. You can also log in and
+choose a local or cloud dev deployment. This writes `CONVEX_DEPLOYMENT` and `NEXT_PUBLIC_CONVEX_URL` to `.env.local` and pushes the
 functions. In a second terminal, set the backend's environment variables:
 
 ```bash
