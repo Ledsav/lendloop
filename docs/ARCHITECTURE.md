@@ -319,13 +319,17 @@ name, and a test fails if anything that looks like a secret appears in it.
 app/
   page.tsx                 public page: preloadQuery on the server, live on the client
   (app)/layout.tsx         signed-in shell: nav, user sync, error state
-  (app)/tools/             browse + "Ask to borrow"
-  (app)/listings/          my listings: create, edit, remove
-  (app)/requests/          my requests: status, activity, cancel
-  (app)/incoming/          requests for my tools: approve, decline, mark returned
+  (app)/tools/             browse: search, category tabs, a row per item with its loop
+  (app)/tools/[id]/        an item: the dial, 12 weeks of use, a date-range calendar to request dates
+  (app)/listings/          my listings: list something; edit and remove from the item page
+  (app)/requests/          my requests: each loan's history in plain words, cancel
+  (app)/incoming/          requests for my things: approve, decline, mark returned
   (app)/admin/             admins only (Convex enforces it; the page just asks)
-components/                cards, badges, forms
-lib/useStoreUser.ts        makes sure the Convex user row exists before pages query
+components/ui/             shadcn/ui primitives (Radix), restyled to the design tokens
+components/loop/           the loop instruments: mini dial, dial, landing dial, 12-week strip, logo
+components/items/, loans/  rows, plates and drawings, the calendar, the timeline
+lib/                       the interface's words and numbers (dates, status lines, dial geometry),
+                           unit-tested; useStoreUser makes sure the Convex user row exists first
 proxy.ts                   Next 16's middleware: Clerk session, redirect from app routes
 ```
 

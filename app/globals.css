@@ -7,7 +7,13 @@
   --font-sans: var(--font-hanken), system-ui, sans-serif;
   --font-serif: var(--font-newsreader), Georgia, serif;
 
-  /* LendLoop: one quiet palette. Ultramarine only for a loan in progress (and focus), red only for late. */
+  /* LendLoop: one quiet palette, and nothing else (Tailwind's default colours are switched off).
+     Ultramarine only for a loan in progress (and focus), red only for late. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
   --color-ink: #1b2030;
   --color-slate: #646a76;
   --color-plate: #ecebe7;
@@ -16,13 +22,6 @@
   --color-hairline: #e3e2de;
   --color-ultramarine: #2a44c8;
   --color-late: #b42318;
-
-  /* Old palette, still used by pages that haven't moved to the tokens yet. */
-  --color-brand-50: #ecfdf5;
-  --color-brand-100: #d1fae5;
-  --color-brand-600: #059669;
-  --color-brand-700: #047857;
-  --color-brand-800: #065f46;
 }
 
 /* shadcn/ui's semantic colours, pointed at the tokens. */

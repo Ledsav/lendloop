@@ -149,9 +149,11 @@ npx convex run users:setRole '{"email": "you@example.com", "role": "admin"}'
 
 ### 6. Try the flows
 
-1. List a tool, then sign in as a second user (a private window) and ask to borrow it.
-2. The lender's email appears in Mailpit; the loan shows "Lender notified of the request: sent".
-3. Approve, decline or mark returned: the borrower gets an email each time.
+1. List something in **My listings**, then sign in as a second user (a private window), open it and
+   pick dates on its calendar: **Request dates**.
+2. The lender's email appears in Mailpit, and the loan's history in **My requests** says "Lena was
+   emailed your request".
+3. Approve, decline or mark returned in **Incoming requests**: the borrower gets an email each time.
 4. Overdue reminders: loans can't be created in the past, so backdate one (development only), then
    run **LendLoop: overdue reminders** from the n8n editor ("Execute workflow"):
 
@@ -417,6 +419,17 @@ npm run lint
   the pinned n8n, connections, error workflow), no secrets in the JSON, and **the JavaScript inside
   the Code nodes**, run against the same signing code Convex uses: a payload signed by Convex
   verifies in n8n, and n8n's write-backs verify in Convex.
+- `convex/tests/loop.test.ts`: each item's state (free, out "day N of M", late) and who may see who
+  has it (the owner, that borrower and admins only).
+- `convex/tests/item.test.ts`: the item page's query: use over the last 12 weeks, the next free day,
+  booked dates, a bad or removed id, and no names or emails for anyone else.
+- `convex/tests/timeline.test.ts`: a loan's history in order, from each side, and who cancelled.
+- `convex/tests/admin.test.ts`: admin rows carry first names and counts, never emails.
+- `convex/tests/seed.test.ts`: the sample data refuses to run without the dev flag or the two real
+  accounts, fills every category and loan state, schedules and emails nothing, and runs twice safely.
+- `lib/*.test.ts`: the interface's words and numbers: dates ("Fri 27 Nov", "today 9:00"), status
+  lines, the dial's geometry, the 12-week strip, search and category tabs, date-range checks (on the
+  server's UTC day), which drawing each item gets.
 
 ## What I'd change for production
 
