@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { dayTicks, itemStatus, loanFraction, pos, stripMonths, stripSegments, usageLine } from "./loop";
+import { dayTicks, itemStatus, loanFraction, loanStatus, pos, stripMonths, stripSegments, usageLine } from "./loop";
+import { loanFixture } from "./test.fixtures";
 
 describe("loop geometry", () => {
   test("the loop starts at the bottom and goes clockwise", () => {
@@ -74,5 +75,37 @@ describe("12-week strip", () => {
     expect(months.map((m) => m.label)).toEqual(["Sep", "Oct", "Nov"]);
     expect(months[0].left).toBe(0);
     expect(months[1].left).toBeCloseTo((28 / 84) * 100);
+  });
+});
+
+describe("a loan's status column", () => {
+  const now = Date.parse("2026-11-27T12:00:00Z");
+  test("a new request, from the lender's side", () => {
+    expect(loanStatus(loanFixture("owner"), "2026-11-27", now)).toEqual({
+      dial: "asked",
+      lines: { primary: "New request", secondary: "1–3 Dec", tone: "muted" },
+    });
+    expect(loanStatus(loanFixture("borrower"), "2026-11-27", now).lines.primary).toBe("Waiting");
+  });
+
+  test("coming up, out, late, returned, closed", () => {
+    expect(loanStatus(loanFixture("borrower", { status: "approved" }), "2026-11-27", now)).toMatchObject({
+      dial: "booked",
+      lines: { primary: "Starts Tue", secondary: "1–3 Dec" },
+    });
+    const out = loanStatus(loanFixture("borrower", { status: "approved", startDate: "2026-11-26", endDate: "2026-11-28" }), "2026-11-27", now);
+    expect(out).toMatchObject({ dial: "out", lines: { primary: "Day 2 of 3", secondary: "back Sat", tone: "out" } });
+    expect(out.fraction).toBeCloseTo(0.5);
+    expect(loanStatus(loanFixture("owner", { status: "approved", startDate: "2026-11-20", endDate: "2026-11-25" }), "2026-11-27", now)).toEqual({
+      dial: "late",
+      lines: { primary: "2 days late", secondary: "due Wed 25 Nov", tone: "late" },
+    });
+    expect(
+      loanStatus(loanFixture("owner", { status: "returned", returnedAt: Date.parse("2026-11-19T17:00:00Z") }), "2026-11-27", now),
+    ).toMatchObject({ dial: "returned", lines: { primary: "Returned", secondary: "Thu 19 Nov" } });
+    expect(loanStatus(loanFixture("owner", { status: "declined" }), "2026-11-27", now)).toEqual({
+      dial: "closed",
+      lines: { primary: "Declined", secondary: "1–3 Dec", tone: "muted" },
+    });
   });
 });

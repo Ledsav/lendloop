@@ -1,7 +1,8 @@
-import { addDays, daysBetween } from "@/convex/lib/dates";
+import { addDays, daysBetween, today as utcDay } from "@/convex/lib/dates";
 import { WINDOW_DAYS, type StripLoan } from "@/convex/lib/itemStats";
 import type { Loop } from "@/convex/lib/loans";
-import { monthName, times, weekday } from "./format";
+import { longDate, monthName, rangeShort, times, weekday } from "./format";
+import type { LoanRowData } from "./timeline";
 
 // ---- Geometry. f = 0 is the bottom of the ring ("at home"); the loop runs clockwise back to it.
 
@@ -56,6 +57,46 @@ export function itemStatus(loop: Loop): StatusLines {
   if (!loop.holder) return { primary: "Late", tone: "late" };
   const late = `${loop.daysLate} ${loop.daysLate === 1 ? "day" : "days"} late`;
   return { primary: late, secondary: holderWords(loop.holder), tone: "late" };
+}
+
+/** The status column of a loan row: where this loan is on its loop. */
+export function loanStatus(
+  loan: Pick<LoanRowData, "status" | "startDate" | "endDate" | "viewerRole" | "returnedAt">,
+  today: string,
+  now: number,
+): { dial: MiniDialState; fraction?: number; lines: StatusLines } {
+  const range = rangeShort(loan.startDate, loan.endDate);
+  switch (loan.status) {
+    case "requested":
+      return { dial: "asked", lines: { primary: loan.viewerRole === "owner" ? "New request" : "Waiting", secondary: range, tone: "muted" } };
+    case "approved": {
+      if (loan.startDate > today)
+        return { dial: "booked", lines: { primary: `Starts ${weekday(loan.startDate)}`, secondary: range, tone: "home" } };
+      if (loan.endDate < today) {
+        const late = daysBetween(loan.endDate, today);
+        return {
+          dial: "late",
+          lines: { primary: `${late} ${late === 1 ? "day" : "days"} late`, secondary: `due ${longDate(loan.endDate)}`, tone: "late" },
+        };
+      }
+      const day = daysBetween(loan.startDate, today) + 1;
+      const days = daysBetween(loan.startDate, loan.endDate) + 1;
+      return {
+        dial: "out",
+        fraction: loanFraction(loan.startDate, loan.endDate, now),
+        lines: { primary: `Day ${day} of ${days}`, secondary: `back ${weekday(loan.endDate)}`, tone: "out" },
+      };
+    }
+    case "returned":
+      return {
+        dial: "returned",
+        lines: { primary: "Returned", secondary: loan.returnedAt ? longDate(utcDay(loan.returnedAt)) : undefined, tone: "home" },
+      };
+    case "declined":
+      return { dial: "closed", lines: { primary: "Declined", secondary: range, tone: "muted" } };
+    case "cancelled":
+      return { dial: "closed", lines: { primary: "Cancelled", secondary: range, tone: "muted" } };
+  }
 }
 
 export function usageLine(recent: number, total: number): string {
