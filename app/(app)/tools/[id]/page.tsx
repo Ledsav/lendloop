@@ -105,7 +105,8 @@ function BorrowPanel({ item }: { item: ItemDetail }) {
 
   return (
     <div className="space-y-4">
-      {item.myLoans.map((l) => (
+      {/* A loan that has started is on the dial already; mention only what's still to come. */}
+      {item.myLoans.filter((l) => l.status === "requested" || l.startDate > item.today).map((l) => (
         <p key={l._id} className="text-[15px]">
           {l.status === "requested" ? (
             <>
