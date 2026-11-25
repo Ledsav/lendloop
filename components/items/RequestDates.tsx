@@ -54,7 +54,6 @@ export function RequestDates({
         // Past days just fade; days someone already has are struck through.
         modifiers={{ booked: taken }}
         modifiersClassNames={{ booked: "[&_button]:line-through [&_button]:decoration-slate" }}
-        excludeDisabled
       />
       <p aria-live="polite" className="mt-3 min-h-[22px] text-[15px]">
         {start && last && !problem ? (
