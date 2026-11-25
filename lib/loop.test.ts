@@ -1,0 +1,78 @@
+import { describe, expect, test } from "vitest";
+import { dayTicks, itemStatus, loanFraction, pos, stripMonths, stripSegments, usageLine } from "./loop";
+
+describe("loop geometry", () => {
+  test("the loop starts at the bottom and goes clockwise", () => {
+    expect(pos(13, 13, 10, 0).map(Math.round)).toEqual([13, 23]);
+    expect(pos(13, 13, 10, 0.25).map(Math.round)).toEqual([3, 13]);
+  });
+
+  test("a loan's fraction covers its whole days and stays between 0 and 1", () => {
+    expect(loanFraction("2026-11-25", "2026-11-25", Date.parse("2026-11-25T12:00:00Z"))).toBeCloseTo(0.5);
+    expect(loanFraction("2026-11-24", "2026-11-26", Date.parse("2026-11-28T12:00:00Z"))).toBe(1);
+    expect(loanFraction("2026-11-24", "2026-11-26", Date.parse("2026-11-20T12:00:00Z"))).toBe(0);
+  });
+
+  test("a major tick at each day boundary, labelled with the weekday", () => {
+    expect(dayTicks("2026-11-23", "2026-11-25")).toEqual([
+      { f: 1 / 3, label: "Tue" },
+      { f: 2 / 3, label: "Wed" },
+    ]);
+    const month = dayTicks("2026-11-01", "2026-11-30"); // 30 days: a tick per boundary, fewer labels
+    expect(month).toHaveLength(29);
+    expect(month.filter((t) => t.label).length).toBeLessThanOrEqual(7);
+  });
+});
+
+describe("status words", () => {
+  test("home, out and late, with and without the holder's name", () => {
+    expect(itemStatus({ state: "home" })).toEqual({ primary: "Free now", tone: "home" });
+    expect(
+      itemStatus({ state: "out", startDate: "2026-11-24", endDate: "2026-11-26", day: 2, days: 3, holder: { name: "Sam", isViewer: false } }),
+    ).toEqual({ primary: "Day 2 of 3", secondary: "with Sam", tone: "out" });
+    expect(
+      itemStatus({ state: "out", startDate: "2026-11-24", endDate: "2026-11-26", day: 2, days: 3, holder: { name: "Sam", isViewer: true } }),
+    ).toEqual({ primary: "Day 2 of 3", secondary: "with you", tone: "out" });
+    expect(itemStatus({ state: "out", startDate: "2026-11-24", endDate: "2026-11-26", day: 2, days: 3, holder: null })).toEqual({
+      primary: "On loan",
+      secondary: "back Thu",
+      tone: "out",
+    });
+    expect(
+      itemStatus({ state: "late", startDate: "2026-11-19", endDate: "2026-11-23", daysLate: 2, holder: { name: "Ana", isViewer: false } }),
+    ).toEqual({ primary: "2 days late", secondary: "with Ana", tone: "late" });
+    expect(
+      itemStatus({ state: "late", startDate: "2026-11-19", endDate: "2026-11-24", daysLate: 1, holder: { name: "Sam", isViewer: true } })
+        .primary,
+    ).toBe("1 day late");
+    expect(itemStatus({ state: "late", startDate: "2026-11-19", endDate: "2026-11-23", daysLate: 2, holder: null })).toEqual({
+      primary: "Late",
+      tone: "late",
+    });
+  });
+
+  test("how often it's been borrowed", () => {
+    expect(usageLine(7, 14)).toBe("Borrowed 7 times in the last 12 weeks, 14 in all.");
+    expect(usageLine(1, 1)).toBe("Borrowed once in the last 12 weeks, 1 in all.");
+    expect(usageLine(0, 3)).toBe("Not borrowed in the last 12 weeks, 3 in all.");
+    expect(usageLine(0, 0)).toBe("Not borrowed yet.");
+  });
+});
+
+describe("12-week strip", () => {
+  test("segments are placed on 84 days, a day wide at least", () => {
+    expect(stripSegments([{ startDate: "2026-11-25", endDate: "2026-11-25", current: true }], "2026-11-25")).toEqual([
+      { left: (83 / 84) * 100, width: (1 / 84) * 100, current: true },
+    ]);
+    expect(stripSegments([{ startDate: "2026-09-03", endDate: "2026-09-05", current: false }], "2026-11-25")).toEqual([
+      { left: 0, width: (3 / 84) * 100, current: false },
+    ]);
+  });
+
+  test("month labels: the window's first month, then each 1st inside it", () => {
+    const months = stripMonths("2026-11-25"); // window starts 3 Sep
+    expect(months.map((m) => m.label)).toEqual(["Sep", "Oct", "Nov"]);
+    expect(months[0].left).toBe(0);
+    expect(months[1].left).toBeCloseTo((28 / 84) * 100);
+  });
+});
