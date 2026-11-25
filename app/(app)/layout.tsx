@@ -47,8 +47,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           children
         ) : failed ? (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            We couldn&apos;t connect your account to LendLoop. Try signing out and in again. (Setting this up? Check the
-            Clerk &ldquo;convex&rdquo; JWT template and CLERK_JWT_ISSUER_DOMAIN on Convex.)
+            We couldn&apos;t connect your account to LendLoop. Try signing out and in again. (Setting this up? Check
+            Clerk&apos;s Convex integration, the email and name claims in Clerk&apos;s session token, and
+            CLERK_JWT_ISSUER_DOMAIN on Convex: README, step 2.)
           </p>
         ) : (
           <Loading />

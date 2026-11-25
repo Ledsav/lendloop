@@ -65,14 +65,28 @@ them in `.env.n8n`.
 
 1. Create an application in the [Clerk dashboard](https://dashboard.clerk.com) (email sign-in is
    enough).
-2. Turn on the **Convex integration** (Configure → Integrations → Convex). It creates the JWT
-   template named `convex` that Convex verifies, and shows your **Frontend API URL** (the issuer).
+2. Turn on the **Convex integration** (Configure → Integrations → Convex). It makes Clerk's session
+   tokens ones Convex accepts (`aud: "convex"`) and shows your **Frontend API URL** (the issuer).
 3. Copy the publishable key and secret key into `.env.local`, or let the Clerk CLI write them:
 
    ```bash
    npx -y clerk@latest auth login
    npx -y clerk@latest link --app <your application id>
    npx -y clerk@latest env pull
+   ```
+
+4. Add the user's email and name to the session token. The integration doesn't, and LendLoop needs
+   the email to send notifications and to find you in `users:setRole` (sign-in fails without it).
+   In the dashboard: Configure → Sessions → Customize session token, with these claims:
+
+   ```json
+   { "email": "{{user.primary_email_address}}", "name": "{{user.full_name}}", "given_name": "{{user.first_name}}" }
+   ```
+
+   Or with the Clerk CLI, once the project is linked:
+
+   ```bash
+   npx -y clerk@latest config patch --json '{"session":{"claims":{"email":"{{user.primary_email_address}}","name":"{{user.full_name}}","given_name":"{{user.first_name}}"}}}'
    ```
 
 ### 3. Convex
@@ -190,7 +204,7 @@ flowchart LR
   Mail[(SMTP / Mailpit)]
 
   UI -- sign in --> Clerk
-  UI -- "JWT (template: convex)" --> Q
+  UI -- "Clerk session token (aud: convex)" --> Q
   Q --> DB
   Q -- "outbox row + schedule" --> A
   A -- "signed webhook" --> W1
@@ -300,7 +314,7 @@ marked `failed` and listed on the admin page with a **Retry** button. Retrying c
 
 ## Security decisions
 
-- **Authentication**: Clerk issues the session; Convex verifies the JWT (template `convex`) on
+- **Authentication**: Clerk issues the session; Convex verifies its token (issuer, `aud: convex`) on
   every call. Functions identify the caller only through `ctx.auth`, never through arguments.
 - **Authorization in the backend**: each public query and mutation checks the caller and the
   resource (`requireUser`, `requireAdmin`, ownership checks). The tests call the functions directly,

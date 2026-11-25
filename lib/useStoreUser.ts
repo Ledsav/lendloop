@@ -7,7 +7,8 @@ import { api } from "@/convex/_generated/api";
 /**
  * Makes sure the signed-in Clerk user has a row in Convex before the app queries anything.
  * `ready` turns true once it does; `failed` means Convex refused the user (usually a Clerk/Convex
- * configuration problem: the "convex" JWT template or CLERK_JWT_ISSUER_DOMAIN).
+ * configuration problem: Clerk's Convex integration, the session token's email claim, or
+ * CLERK_JWT_ISSUER_DOMAIN).
  */
 export function useStoreUser() {
   const { isLoading, isAuthenticated } = useConvexAuth();

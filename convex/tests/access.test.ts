@@ -118,3 +118,12 @@ describe("admin", () => {
     expect((await alice.query(api.users.me, {}))!.role).toBe("user");
   });
 });
+
+describe("account sync", () => {
+  test("a sign-in without an email claim is refused instead of saved without one", async () => {
+    const t = convexTest(schema, modules);
+    const noEmail = t.withIdentity({ subject: "Eve", issuer: "https://clerk.example.test", givenName: "Eve" });
+    await expect(noEmail.mutation(api.users.store, {})).rejects.toThrow("no email address");
+    expect(await noEmail.query(api.users.me, {})).toBeNull();
+  });
+});
