@@ -1,0 +1,320 @@
+{
+  "id": "LendLoopEvents01",
+  "name": "LendLoop: request notification",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lendloop/loan-events",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "a8203193-eb8c-400a-a04b-b714851695fc",
+      "name": "LendLoop event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "b14adb0f-1989-4f2e-a461-9f6aa16ea90a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifies the HMAC signature LendLoop (Convex) puts on every event: see convex/lib/hmac.ts.\n//   X-LendLoop-Timestamp: unix seconds   X-LendLoop-Signature: v1=hex(HMAC-SHA256(secret, timestamp + \".\" + rawBody))\n// The secret comes from the environment (LENDLOOP_TO_N8N_SECRET), never from this workflow.\nconst { createHmac, timingSafeEqual } = require('crypto');\nconst TOLERANCE_SECONDS = 300;\n\nconst secret = $env.LENDLOOP_TO_N8N_SECRET;\nconst headers = $input.first().json.headers || {};\nconst timestamp = String(headers['x-lendloop-timestamp'] || '');\nconst signature = String(headers['x-lendloop-signature'] || '');\n\n// The exact bytes that were signed (the Webhook node's \"Raw Body\" option), not a re-serialized copy.\nlet raw = '';\ntry {\n  raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\n} catch (error) {\n  raw = '';\n}\n\nlet reason = '';\nif (!secret) reason = 'LENDLOOP_TO_N8N_SECRET is not set';\nelse if (!/^\\d{1,12}$/.test(timestamp) || !signature) reason = 'missing signature headers';\nelse if (Math.abs(Date.now() / 1000 - Number(timestamp)) > TOLERANCE_SECONDS) reason = 'stale timestamp';\nelse {\n  const expected = Buffer.from('v1=' + createHmac('sha256', secret).update(timestamp + '.' + raw).digest('hex'));\n  const given = Buffer.from(signature);\n  if (expected.length !== given.length || !timingSafeEqual(expected, given)) reason = 'bad signature';\n}\n\nif (reason) return [{ json: { valid: false, reason } }];\n// Only the verified event goes on; the request headers stay here.\nreturn [{ json: { valid: true, event: JSON.parse(raw) } }];\n"
+      },
+      "id": "cebe949d-423e-40b5-a3a4-401d80d78020",
+      "name": "Verify signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "15ad9b62-654f-4111-a461-c4134098fa1d",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "17c70307-12d6-4a67-af3e-91cb82591490",
+      "name": "Signature valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ accepted: true }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "0ead0a22-9fc9-4f9c-a517-e80f6c0524b2",
+      "name": "Accept (202)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "f80142f3-0c1d-48ff-af1a-1bf3f7f399fe",
+      "name": "Reject (401)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.event.deliveryId }}",
+        "options": {}
+      },
+      "id": "0e63c569-b924-46c6-a6b9-ca96bef3f7db",
+      "name": "Skip repeated deliveries",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Turns a verified LendLoop event into an email. Uses only what the email needs.\nconst e = $json.event;\nconst day = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });\nconst dates = day(e.loan.startDate) + ' – ' + day(e.loan.endDate);\nconst other = e.otherParty.name;\nconst tool = e.tool.name;\n\nconst messages = {\n  'loan.requested': [other + ' wants to borrow your ' + tool,\n    other + ' asked to borrow your ' + tool + ' for ' + dates + '. Approve or decline it in LendLoop, under \"Incoming requests\".'],\n  'loan.approved': [other + ' approved your request for the ' + tool,\n    'Good news: you can borrow the ' + tool + ' for ' + dates + '. Arrange the pickup with ' + other + '.'],\n  'loan.declined': ['Your request for the ' + tool + ' was declined',\n    'Your request to borrow the ' + tool + ' for ' + dates + ' was declined. Other neighbors may have one: have a look in LendLoop.'],\n  'loan.cancelled': e.recipient.role === 'owner'\n    ? [other + ' cancelled their request for your ' + tool, other + ' no longer needs your ' + tool + ' for ' + dates + '.']\n    : ['Your loan of the ' + tool + ' was cancelled', 'The ' + tool + ' is no longer available for ' + dates + ': the listing was removed.'],\n  'loan.returned': ['Thanks for returning the ' + tool, other + ' confirmed that the ' + tool + ' is back. Thanks for looking after it!'],\n};\nconst [subject, body] = messages[e.type] || ['Update on your LendLoop loan', 'There is an update on the ' + tool + ' (' + dates + ').'];\n\nreturn {\n  json: {\n    eventId: e.eventId,\n    to: e.recipient.email,\n    subject,\n    text: 'Hi ' + e.recipient.name + ',\\n\\n' + body + '\\n\\n– LendLoop',\n  },\n};\n"
+      },
+      "id": "6e76f529-a313-4ad5-acf0-f1193305465b",
+      "name": "Build email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.LENDLOOP_MAIL_FROM }}",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7f37a4f0-fccd-46da-acb3-e4c6be0d39bd",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "LendLoopSmtp0001",
+          "name": "LendLoop SMTP"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Reports the outcome back to LendLoop, signed with N8N_TO_LENDLOOP_SECRET (same scheme as above).\n// This node gets both outputs of \"Send email\": items with an \"error\" field come from the error output.\nconst { createHmac } = require('crypto');\nconst eventId = $('Build email').item.json.eventId;\nconst failed = Boolean($json.error);\nconst report = { eventId, status: failed ? 'failed' : 'sent' };\nif (failed) report.error = String(($json.error && $json.error.message) || $json.error).slice(0, 300);\n\nconst body = JSON.stringify(report);\nconst timestamp = Math.floor(Date.now() / 1000).toString();\nconst signature = 'v1=' + createHmac('sha256', $env.N8N_TO_LENDLOOP_SECRET).update(timestamp + '.' + body).digest('hex');\nreturn {\n  json: {\n    body,\n    headers: { 'Content-Type': 'application/json', 'X-LendLoop-Timestamp': timestamp, 'X-LendLoop-Signature': signature },\n  },\n};\n"
+      },
+      "id": "0a55dc55-3f00-4157-afa4-df309fb61c5d",
+      "name": "Sign report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/n8n/notification-status",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "a36f7294-1e50-4d24-a611-82d4c81a134b",
+      "name": "Report to LendLoop",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "LendLoop event": {
+      "main": [
+        [
+          {
+            "node": "Verify signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify signature": {
+      "main": [
+        [
+          {
+            "node": "Signature valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature valid?": {
+      "main": [
+        [
+          {
+            "node": "Accept (202)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject (401)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accept (202)": {
+      "main": [
+        [
+          {
+            "node": "Skip repeated deliveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip repeated deliveries": {
+      "main": [
+        [
+          {
+            "node": "Build email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build email": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Sign report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sign report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign report": {
+      "main": [
+        [
+          {
+            "node": "Report to LendLoop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "errorWorkflow": "LendLoopErrors01"
+  },
+  "pinData": {},
+  "tags": []
+}

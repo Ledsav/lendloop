@@ -1,0 +1,285 @@
+{
+  "id": "LendLoopRemind01",
+  "name": "LendLoop: overdue reminders",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "399a7bf6-0852-4784-abbb-aa926c3b2547",
+      "name": "Every day at 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Signs the request for overdue loans with N8N_TO_LENDLOOP_SECRET (see convex/lib/hmac.ts).\n// An empty body means \"as of today (UTC)\" on the LendLoop side.\nconst { createHmac } = require('crypto');\nconst body = JSON.stringify({});\nconst timestamp = Math.floor(Date.now() / 1000).toString();\nconst signature = 'v1=' + createHmac('sha256', $env.N8N_TO_LENDLOOP_SECRET).update(timestamp + '.' + body).digest('hex');\nreturn [{\n  json: {\n    body,\n    headers: { 'Content-Type': 'application/json', 'X-LendLoop-Timestamp': timestamp, 'X-LendLoop-Signature': signature },\n  },\n}];\n"
+      },
+      "id": "7a002202-d408-4071-a1b7-39f2bf41c290",
+      "name": "Sign request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/n8n/overdue-loans",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fe0d89d8-a18f-4881-a1fa-3c38503a52fd",
+      "name": "Fetch overdue loans",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "loans",
+        "options": {}
+      },
+      "id": "c51646ff-7549-45ee-ace7-4a5b527b1022",
+      "name": "One item per loan",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// One reminder email per overdue loan, from the fields LendLoop sent (first name, email, tool, date).\nconst loan = $json;\nconst due = new Date(loan.endDate + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });\nconst days = loan.daysOverdue === 1 ? '1 day' : loan.daysOverdue + ' days';\nreturn {\n  json: {\n    reminderKey: loan.reminderKey,\n    to: loan.borrower.email,\n    subject: 'Reminder: please return the ' + loan.tool.name,\n    text: 'Hi ' + loan.borrower.name + ',\\n\\nThe ' + loan.tool.name + ' was due back on ' + due + ' (' + days +\n      ' ago). Please return it, or message the lender to agree a new date.\\n\\n– LendLoop',\n  },\n};\n"
+      },
+      "id": "888ae50a-bae4-4808-ad75-14d00878a00c",
+      "name": "Build reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.LENDLOOP_MAIL_FROM }}",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "f66c7879-7340-49e4-a7db-a8090ce571ca",
+      "name": "Send reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "LendLoopSmtp0001",
+          "name": "LendLoop SMTP"
+        }
+      },
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Writes the reminder's outcome back to LendLoop, signed. The reminderKey (loan + day) makes the\n// write-back idempotent: if this request is retried, LendLoop updates the same record.\nconst { createHmac } = require('crypto');\nconst reminderKey = $('Build reminder').item.json.reminderKey;\nconst failed = Boolean($json.error);\nconst result = { reminderKey, status: failed ? 'failed' : 'sent' };\nif (failed) result.error = String(($json.error && $json.error.message) || $json.error).slice(0, 300);\n\nconst body = JSON.stringify(result);\nconst timestamp = Math.floor(Date.now() / 1000).toString();\nconst signature = 'v1=' + createHmac('sha256', $env.N8N_TO_LENDLOOP_SECRET).update(timestamp + '.' + body).digest('hex');\nreturn {\n  json: {\n    body,\n    headers: { 'Content-Type': 'application/json', 'X-LendLoop-Timestamp': timestamp, 'X-LendLoop-Signature': signature },\n  },\n};\n"
+      },
+      "id": "3063e4ab-065c-4926-a4b0-640682cc4a82",
+      "name": "Sign write-back",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LENDLOOP_CONVEX_SITE_URL }}/n8n/reminders",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "bb4e0cdd-3093-4ef3-a75c-efcb81790400",
+      "name": "Write back to LendLoop",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "errorMessage": "=LendLoop rejected or didn't answer {{ $items().length }} reminder write-back(s) after retries"
+      },
+      "id": "183c8198-e3e6-4512-ab97-d1560e768bc7",
+      "name": "Write-back failed",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Every day at 9:00": {
+      "main": [
+        [
+          {
+            "node": "Sign request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign request": {
+      "main": [
+        [
+          {
+            "node": "Fetch overdue loans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch overdue loans": {
+      "main": [
+        [
+          {
+            "node": "One item per loan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per loan": {
+      "main": [
+        [
+          {
+            "node": "Build reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build reminder": {
+      "main": [
+        [
+          {
+            "node": "Send reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder": {
+      "main": [
+        [
+          {
+            "node": "Sign write-back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sign write-back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign write-back": {
+      "main": [
+        [
+          {
+            "node": "Write back to LendLoop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write back to LendLoop": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Write-back failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "errorWorkflow": "LendLoopErrors01"
+  },
+  "pinData": {},
+  "tags": []
+}

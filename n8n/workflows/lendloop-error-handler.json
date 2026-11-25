@@ -1,0 +1,93 @@
+{
+  "id": "LendLoopErrors01",
+  "name": "LendLoop: error handler",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b0ddb3d7-bf85-4360-a4b1-a3a90207d201",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Formats a failure alert. Links to the execution instead of copying its data (which may hold emails).\nconst { execution = {}, workflow = {} } = $json;\nconst message = (execution.error && execution.error.message) || 'unknown error';\nreturn {\n  json: {\n    subject: '[LendLoop] ' + (workflow.name || 'A workflow') + ' failed',\n    text: [\n      'Workflow: ' + (workflow.name || '?') + ' (' + (workflow.id || '?') + ')',\n      'Failed node: ' + (execution.lastNodeExecuted || '?'),\n      'Error: ' + message,\n      'Execution: ' + (execution.url || 'n/a'),\n      '',\n      'Retries are already exhausted at this point. Check the execution, fix the cause, then retry it from n8n.',\n    ].join('\\n'),\n  },\n};\n"
+      },
+      "id": "ab129582-b446-4b95-a35a-49c2e4ae4c11",
+      "name": "Format alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.LENDLOOP_MAIL_FROM }}",
+        "toEmail": "={{ $env.LENDLOOP_OPS_EMAIL }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "ea02f46f-11bf-4900-a308-4cb249ccd685",
+      "name": "Alert ops",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "LendLoopSmtp0001",
+          "name": "LendLoop SMTP"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "On workflow error": {
+      "main": [
+        [
+          {
+            "node": "Format alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format alert": {
+      "main": [
+        [
+          {
+            "node": "Alert ops",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false
+  },
+  "pinData": {},
+  "tags": []
+}

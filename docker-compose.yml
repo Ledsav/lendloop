@@ -1,0 +1,43 @@
+# Local automation stack for LendLoop: n8n (workflows) + Mailpit (catches every email it sends).
+#   cp .env.n8n.example .env.n8n   # then fill in the secrets
+#   docker compose up -d
+# n8n: http://localhost:5678   Mailpit (the "inbox"): http://localhost:8025
+services:
+  n8n:
+    image: n8nio/n8n:2.49.6
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    # Secrets (HMAC keys, n8n's encryption key) live in .env.n8n, which is git-ignored.
+    env_file: .env.n8n
+    environment:
+      - GENERIC_TIMEZONE=UTC
+      - TZ=UTC
+      - WEBHOOK_URL=http://localhost:5678/
+      # The Code nodes read the two HMAC secrets from the environment (never from workflow JSON)...
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      # ...and use Node's crypto module to sign and verify.
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      # Data minimization: don't keep successful runs (they contain email addresses); prune the rest.
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    extra_hosts:
+      # Lets n8n reach a Convex backend running on your machine (npx convex dev --local).
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # web UI; SMTP stays on the internal network (mailpit:1025)
+
+volumes:
+  n8n_data:
