@@ -19,11 +19,17 @@ const STEPS = [
 
 const gutter = "px-4 sm:px-8 lg:px-14";
 
-export default async function Home() {
-  const preloaded = await preloadQuery(api.tools.listPublic, {});
+export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const [preloaded, params] = await Promise.all([preloadQuery(api.tools.listPublic, {}), searchParams]);
+  const deleted = params.deleted === "1";
   const drill = <Drawing kind="drill" />;
   return (
     <div className="mx-auto max-w-[1100px]">
+      {deleted && (
+        <p role="status" className={`border-b border-hairline bg-field py-3 text-[15px] ${gutter}`}>
+          Your account and data are deleted.
+        </p>
+      )}
       <nav className={`flex items-center justify-between py-5 lg:py-7 ${gutter}`}>
         <Logo size="lg" />
         <NavSignIn />

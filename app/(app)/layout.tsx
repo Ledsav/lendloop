@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/listings", label: "My listings" },
   { href: "/requests", label: "My requests" },
   { href: "/incoming", label: "Incoming requests" },
+  { href: "/account", label: "Your data" },
 ];
 
 function NavLinks({ links, pathname, className }: { links: typeof LINKS; pathname: string; className: string }) {

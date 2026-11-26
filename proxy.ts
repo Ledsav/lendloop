@@ -2,7 +2,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Signed-out visitors only see the public page. This is a convenience redirect: the real checks
 // are in the Convex functions, which verify the Clerk token on every call.
-const isAppRoute = createRouteMatcher(["/tools(.*)", "/listings(.*)", "/requests(.*)", "/incoming(.*)", "/admin(.*)"]);
+const isAppRoute = createRouteMatcher(["/tools(.*)", "/listings(.*)", "/requests(.*)", "/incoming(.*)", "/admin(.*)", "/account(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isAppRoute(req)) await auth.protect();

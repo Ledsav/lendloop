@@ -11,6 +11,7 @@ export default defineSchema({
     email: v.string(), // used only to send notifications; never returned to other users
     role: v.union(v.literal("admin"), v.literal("user")),
     trustedLender: v.boolean(),
+    deletedAt: v.optional(v.number()), // set when the person deleted their account (then anonymised)
   }).index("by_token", ["tokenIdentifier"]),
 
   tools: defineTable({
