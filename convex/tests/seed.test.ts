@@ -91,3 +91,33 @@ describe("devtools:seed", () => {
     expect(await carol.query(api.loans.myRequests, {})).toHaveLength(0);
   });
 });
+
+describe("devtools:demoReset (the public demo, nightly)", () => {
+  test("does nothing unless the deployment is the demo", async () => {
+    const { t } = await setup();
+    await t.mutation(internal.devtools.seed, real);
+    expect(await t.action(internal.devtools.demoReset, real)).toEqual({ reset: false });
+    expect(await t.run((ctx) => ctx.db.query("tools").collect())).toHaveLength(29);
+  });
+
+  test("undoes whatever visitors changed and seeds again", async () => {
+    vi.stubEnv("LENDLOOP_DEMO", "true");
+    const { t, alice, bob, admin } = await setup();
+    await t.mutation(internal.devtools.seed, real);
+    // Visitors sign in as the demo users: they list things, remove things, flip switches.
+    await alice.mutation(api.tools.create, { name: "Spray paint", category: "other", condition: "new", description: "" });
+    const mixer = (await bob.query(api.tools.list, {})).find((x) => x.name === "Stand mixer")!;
+    await admin.mutation(api.tools.remove, { toolId: mixer._id });
+    const bobRow = (await admin.query(api.admin.users, {})).find((u) => u.name === "Bob")!;
+    await admin.mutation(api.admin.setTrustedLender, { userId: bobRow._id, trusted: true });
+
+    expect(await t.action(internal.devtools.demoReset, real)).toMatchObject({ reset: true, items: 29 });
+    const names = (await bob.query(api.tools.list, {})).map((x) => x.name);
+    expect(names).toContain("Stand mixer");
+    expect(names).not.toContain("Spray paint");
+    const people = await admin.query(api.admin.users, {});
+    expect(people.find((u) => u.name === "Bob")!.trustedLender).toBe(false);
+    expect(people.find((u) => u.name === "Alice")!.trustedLender).toBe(true);
+    expect(people.filter((u) => u.name === "Marco")).toHaveLength(1); // neighbours aren't duplicated
+  });
+});

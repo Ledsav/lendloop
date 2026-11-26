@@ -259,3 +259,48 @@ export const seed = internalMutation({
     return { seeded: true, ...counts(written) };
   },
 });
+
+const WIPE_TABLES = ["outbox", "reminders", "loans", "tools", "seedRows"] as const;
+const WIPE_BATCH = 200;
+
+/**
+ * The public demo only: deletes one batch of everything people can change (loans and their
+ * history, listings, the seed's records). When those are empty it removes the sample neighbours
+ * and clears every Trusted Lender mark, so the seed can start from scratch.
+ */
+export const wipeDemoBatch = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    if (process.env.LENDLOOP_DEMO !== "true") throw new ConvexError("Only the demo deployment can be wiped.");
+    for (const table of WIPE_TABLES) {
+      const docs = await ctx.db.query(table).take(WIPE_BATCH);
+      if (docs.length > 0) {
+        for (const doc of docs) await ctx.db.delete(doc._id);
+        return { done: false };
+      }
+    }
+    for (const user of await ctx.db.query("users").collect()) {
+      if (user.tokenIdentifier.startsWith("seed|")) await ctx.db.delete("users", user._id);
+      else if (user.trustedLender) await ctx.db.patch("users", user._id, { trustedLender: false });
+    }
+    return { done: true };
+  },
+});
+
+/**
+ * Puts the public demo back the way it started: wipes what visitors changed, then seeds again with
+ * dates relative to today. Runs every night (convex/crons.ts) and does nothing on any deployment
+ * without LENDLOOP_DEMO=true, so local and production data are never touched.
+ *   npx convex run devtools:demoReset
+ */
+export const demoReset = internalAction({
+  args: { realEmails: v.optional(v.array(v.string())) },
+  handler: async (ctx, args): Promise<{ reset: false } | { reset: true; people: number; items: number; loans: number }> => {
+    if (process.env.LENDLOOP_DEMO !== "true") return { reset: false };
+    requireDevTools();
+    await ctx.runQuery(internal.devtools.checkRealAccounts, args); // before deleting anything
+    while (!(await ctx.runMutation(internal.devtools.wipeDemoBatch, {})).done);
+    const seeded = await ctx.runMutation(internal.devtools.seed, args);
+    return { reset: true, people: seeded.people, items: seeded.items, loans: seeded.loans };
+  },
+});
