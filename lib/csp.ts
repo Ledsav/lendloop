@@ -36,7 +36,7 @@ export function contentSecurityPolicy(opts: { convexUrl?: string; clerkPublishab
     ...(opts.clerkPublishableKey?.startsWith("pk_test_") ? ["https://*.clerk.accounts.dev"] : []),
   ];
   const turnstile = "https://challenges.cloudflare.com"; // Clerk's bot check
-  const protect = ["https://cdn.protect.clerk.com", "https://*.protect.clerk.com"]; // Clerk's fraud protection
+  const protect = ["https://cdn.protect.clerk.com", "https://*.protect.clerk.com:*"]; // any port: its probes use several // Clerk's fraud protection
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
     ["script-src", ["'self'", "'unsafe-inline'", ...(opts.dev ? ["'unsafe-eval'"] : []), ...clerk, turnstile, ...protect]],
