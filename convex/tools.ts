@@ -3,6 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { isAdmin, requireUser } from "./lib/auth";
 import { today } from "./lib/dates";
+import { audit } from "./lib/audit";
 import { emitLoanEvent } from "./lib/events";
 import { booked, nextFree, usage } from "./lib/itemStats";
 import { availability, lentCount, loopFor, toolLoans } from "./lib/loans";
@@ -153,12 +154,14 @@ export const create = mutation({
   args: listingFields,
   handler: async (ctx, args) => {
     const viewer = await requireUser(ctx);
-    return await ctx.db.insert("tools", {
+    const toolId = await ctx.db.insert("tools", {
       ownerId: viewer._id,
       category: args.category,
       condition: args.condition,
       ...cleanListing(args),
     });
+    await audit(ctx, viewer._id, "listing.created", toolId);
+    return toolId;
   },
 });
 
@@ -176,6 +179,7 @@ export const update = mutation({
     const tool = await getActiveTool(ctx, toolId);
     if (tool.ownerId !== viewer._id) throw new ConvexError("You can only edit your own listings.");
     await ctx.db.patch("tools", toolId, { category: args.category, condition: args.condition, ...cleanListing(args) });
+    await audit(ctx, viewer._id, "listing.updated", toolId);
   },
 });
 
@@ -214,5 +218,6 @@ export const remove = mutation({
       await emitLoanEvent(ctx, "loan.declined", loan._id);
     }
     await ctx.db.patch("tools", toolId, { removedAt: now, removedBy: viewer._id });
+    await audit(ctx, viewer._id, "listing.removed", toolId);
   },
 });

@@ -119,5 +119,6 @@ describe("devtools:demoReset (the public demo, nightly)", () => {
     expect(people.find((u) => u.name === "Bob")!.trustedLender).toBe(false);
     expect(people.find((u) => u.name === "Alice")!.trustedLender).toBe(true);
     expect(people.filter((u) => u.name === "Marco")).toHaveLength(1); // neighbours aren't duplicated
+    expect(await t.run((ctx) => ctx.db.query("auditLog").collect())).toHaveLength(0); // the audit log starts over too
   });
 });

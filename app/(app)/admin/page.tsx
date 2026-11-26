@@ -14,7 +14,9 @@ import { Switch } from "@/components/ui/switch";
 import { api } from "@/convex/_generated/api";
 import { today as utcDay } from "@/convex/lib/dates";
 import { thing, times, when } from "@/lib/format";
+import { auditText } from "@/lib/audit";
 import { EVENT_NOUN, groupLoans } from "@/lib/timeline";
+import { useState } from "react";
 import { useAction } from "@/lib/useAction";
 import { useNow } from "@/lib/useNow";
 
@@ -35,6 +37,7 @@ function AdminConsole() {
   const loans = useQuery(api.admin.allLoans);
   const tools = useQuery(api.tools.list, {});
   const people = useQuery(api.admin.users);
+  const audit = useQuery(api.admin.auditLog);
   const now = useNow();
   const today = utcDay(now);
 
@@ -68,6 +71,8 @@ function AdminConsole() {
           </ul>
         )}
       </section>
+
+      <AuditSection rows={audit} now={now} />
 
       {loans === undefined ? (
         <section>
@@ -206,5 +211,44 @@ function AdminPerson({ person }: { person: Person }) {
         />
       </label>
     </li>
+  );
+}
+
+const AUDIT_SHOWN = 50;
+
+/** Who changed what, newest first. Holds ids only; the names are looked up as it's read. */
+function AuditSection({ rows, now }: { rows: FunctionReturnType<typeof api.admin.auditLog> | undefined; now: number }) {
+  const [all, setAll] = useState(false);
+  const shown = rows && !all ? rows.slice(0, AUDIT_SHOWN) : rows;
+  return (
+    <section>
+      <SectionTitle>Audit log</SectionTitle>
+      {rows === undefined ? (
+        <RowSkeleton rows={3} dense />
+      ) : rows.length === 0 ? (
+        <p className="py-3 text-[15px] text-slate">Nothing recorded yet. Every change people make shows up here.</p>
+      ) : (
+        <>
+          <ul>
+            {shown!.map((row) => (
+              <li key={row._id} className="flex flex-wrap justify-between gap-x-4 border-b border-hairline py-2.5 text-[15px]">
+                <span className="min-w-0">{auditText(row)}</span>
+                <span className="shrink-0 text-[13px] text-slate">{when(row.at, now)}</span>
+              </li>
+            ))}
+          </ul>
+          {shown!.length < rows.length && (
+            <button
+              type="button"
+              onClick={() => setAll(true)}
+              className="mt-3 cursor-pointer text-[15px] font-medium text-ink underline decoration-hairline underline-offset-4 hover:decoration-ink"
+            >
+              Show all {rows.length} entries
+            </button>
+          )}
+          <p className="mt-3 text-[13px] text-slate">Entries are kept for a year, then deleted.</p>
+        </>
+      )}
+    </section>
   );
 }

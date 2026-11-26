@@ -3,6 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 import { overlaps, today, validateLoanDates } from "./lib/dates";
+import { audit } from "./lib/audit";
 import { emitLoanEvent } from "./lib/events";
 import { loanView } from "./lib/loans";
 
@@ -53,6 +54,7 @@ export const request = mutation({
       requestedAt: Date.now(),
     });
     await emitLoanEvent(ctx, "loan.requested", loanId);
+    await audit(ctx, viewer._id, "loan.requested", loanId);
     return loanId;
   },
 });
@@ -72,6 +74,7 @@ export const approve = mutation({
       throw new ConvexError("You already approved another loan for some of those dates.");
     await ctx.db.patch("loans", loanId, { status: "approved", decidedAt: Date.now() });
     await emitLoanEvent(ctx, "loan.approved", loanId);
+    await audit(ctx, viewer._id, "loan.approved", loanId);
   },
 });
 
@@ -84,6 +87,7 @@ export const decline = mutation({
     expectStatus(loan, "requested");
     await ctx.db.patch("loans", loanId, { status: "declined", decidedAt: Date.now() });
     await emitLoanEvent(ctx, "loan.declined", loanId);
+    await audit(ctx, viewer._id, "loan.declined", loanId);
   },
 });
 
@@ -99,6 +103,7 @@ export const cancel = mutation({
       throw new ConvexError("This loan has started: the lender marks it returned.");
     await ctx.db.patch("loans", loanId, { status: "cancelled", decidedAt: Date.now() });
     await emitLoanEvent(ctx, "loan.cancelled", loanId, "owner");
+    await audit(ctx, viewer._id, "loan.cancelled", loanId);
   },
 });
 
@@ -112,6 +117,7 @@ export const markReturned = mutation({
     expectStatus(loan, "approved");
     await ctx.db.patch("loans", loanId, { status: "returned", returnedAt: Date.now() });
     await emitLoanEvent(ctx, "loan.returned", loanId);
+    await audit(ctx, viewer._id, "loan.returned", loanId);
   },
 });
 

@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { audit } from "./lib/audit";
 import { getViewer } from "./lib/auth";
 
 /** Creates or refreshes the signed-in user's row from the verified Clerk identity. */
@@ -53,6 +54,7 @@ export const setRole = internalMutation({
     const matches = (await ctx.db.query("users").collect()).filter((u) => u.email.toLowerCase() === email.toLowerCase());
     if (matches.length !== 1) throw new ConvexError(`Expected one user with that email, found ${matches.length}. Sign in once first.`);
     await ctx.db.patch("users", matches[0]._id, { role });
+    await audit(ctx, undefined, "user.role", matches[0]._id, { role });
     return matches[0]._id;
   },
 });

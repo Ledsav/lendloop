@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { category, condition, eventType, loanStatus } from "./lib/validators";
+import { auditAction, category, condition, eventType, loanStatus } from "./lib/validators";
 
 export default defineSchema({
   // One row per Clerk user, created on first sign-in (users.store). The role lives here, on the
@@ -79,6 +79,15 @@ export default defineSchema({
   })
     .index("by_key", ["key"])
     .index("by_loan", ["loanId"]),
+
+  // Who changed what, for accountability: ids and action names only, never names, emails or free
+  // text. Readable by admins; entries older than a year are deleted every night (convex/crons.ts).
+  auditLog: defineTable({
+    actorId: v.optional(v.id("users")), // absent: the system (command line, scheduled jobs)
+    action: auditAction,
+    targetId: v.optional(v.string()), // the record acted on
+    details: v.optional(v.record(v.string(), v.union(v.string(), v.boolean(), v.number()))),
+  }).index("by_actor", ["actorId"]),
 
   // Development only: every row devtools:seed wrote, so a second run is a no-op and
   // `{"fresh": true}` can remove exactly the sample data before writing it again.

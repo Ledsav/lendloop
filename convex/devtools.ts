@@ -260,7 +260,7 @@ export const seed = internalMutation({
   },
 });
 
-const WIPE_TABLES = ["outbox", "reminders", "loans", "tools", "seedRows"] as const;
+const WIPE_TABLES = ["outbox", "reminders", "loans", "tools", "seedRows", "auditLog"] as const;
 const WIPE_BATCH = 200;
 
 /**
