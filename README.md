@@ -17,6 +17,7 @@ Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and b
 
 - [What it does](#what-it-does)
   - [Design](#design)
+- [Requirements checklist](#requirements-checklist)
 - [Local setup](#local-setup)
   - [Sample data](#7-sample-data)
 - [Environment variables](#environment-variables)
@@ -26,6 +27,7 @@ Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and b
 - [Security decisions](#security-decisions)
 - [Data minimization](#data-minimization)
 - [Tests](#tests)
+- [How this was built](#how-this-was-built)
 - [What I'd change for production](#what-id-change-for-production)
 
 ## What it does
@@ -76,6 +78,32 @@ by hairlines instead of cards, and shaded drawings on a neutral plate where owne
 The shadcn/ui components (Radix underneath) are restyled to these tokens in `app/globals.css`. The
 words and numbers the screens show (dates, statuses, the dial's geometry, the 12-week strip) are plain
 functions in `lib/`, each covered by a test. Screens and copy follow British spelling.
+
+## Requirements checklist
+
+Every requirement of the brief, where it lives, and the test that holds it in place.
+
+| Requirement | Where | Checked by |
+|---|---|---|
+| Public page: name, tagline, available tools with name and category only | `app/page.tsx`, `tools.listPublic` | `access.test.ts` (public page) |
+| "Sign in to lend or borrow" wired to Clerk | `app/SignInCta.tsx` | `e2e/borrowing.spec.ts` |
+| Only signed-in users can act | `requireUser` in every function (`convex/lib/auth.ts`); `proxy.ts` redirects | `access.test.ts` (signed-out visitors) |
+| List a tool: name, category, condition, description | `tools.create`, `components/ListingForm.tsx` | `access.test.ts` (validated on the server) |
+| Request to borrow for a date range | `loans.request`, `components/items/RequestDates.tsx` | `loans.test.ts`, `lib/booking.test.ts`, `e2e/borrowing.spec.ts` |
+| Approve or decline requests on your own tools; mark returned | `loans.approve`, `loans.decline`, `loans.markReturned` | `loans.test.ts` (each step only by the right person) |
+| All tools with availability, filterable by category | `tools.list`, `app/(app)/tools/page.tsx` | `loop.test.ts`, `lib/filter.test.ts` |
+| My listings, My requests, Incoming requests | `app/(app)/listings`, `requests`, `incoming` | `timeline.test.ts`, `e2e/borrowing.spec.ts` |
+| Admin: remove any listing, view all loans, mark a Trusted Lender | `convex/admin.ts`, `tools.remove` | `access.test.ts` (admin) |
+| Users act only on their own listings and loans | owner and borrower checks in `convex/tools.ts`, `convex/loans.ts` | `access.test.ts`, `loans.test.ts` |
+| Roles enforced in Convex, not only in the UI | `requireAdmin`; `users.setRole` is internal | `access.test.ts` (nobody can make themselves admin) |
+| Request notification: Convex calls an n8n webhook with only the fields needed | outbox + `notifications.deliver`; `n8n/workflows/lendloop-request-notification.json` | `automation.test.ts` (signed, minimal payload) |
+| Overdue reminders: daily, from a Convex HTTP endpoint, status written back | `reminders.overdue` / `reminders.record`, `convex/http.ts`; `lendloop-overdue-reminders.json` | `automation.test.ts`, `n8n/workflows.test.ts` |
+| Payloads signed and verified in both directions | `convex/lib/hmac.ts`, `convex/http.ts`, the n8n Code nodes | `automation.test.ts` (RFC 4231 vector, tampering, replay), `n8n/workflows.test.ts` |
+| Secrets only in environment variables and n8n credentials | `.env.local`, `.env.n8n`, n8n credentials | `n8n/workflows.test.ts` (no secrets in the JSON) |
+| Idempotent write-backs | upsert by key in `reminders.record`; `notifications.report` | `automation.test.ts` (retried write-backs) |
+| Retries and an error workflow; failures never silent | backoff in `notifications.ts`; `lendloop-error-handler.json`; Admin, failures first | `automation.test.ts`, `admin.test.ts` |
+| Bonus: recent automation activity on each loan | the loan timeline (`loanView`, `lib/timeline.ts`) | `timeline.test.ts`, `lib/timeline.test.ts` |
+| Repository, exported workflows, README, production note | this repository, `n8n/workflows/`, this file | [What I'd change for production](#what-id-change-for-production) |
 
 ## Local setup
 
@@ -465,6 +493,13 @@ npm run lint
 - `lib/*.test.ts`: the interface's words and numbers: dates ("Fri 27 Nov", "today 9:00"), status
   lines, the dial's geometry, the 12-week strip, search and category tabs, date-range checks (on the
   server's UTC day), which drawing each item gets.
+
+## How this was built
+
+With the help of an AI coding assistant (Claude Code), which the brief allows. The work followed a
+written design brief and plan; every change was checked with the automated tests, CI, a fresh review
+of the whole branch, and the two-person flow run end to end against a real Clerk, Convex and n8n
+setup (`e2e/`).
 
 ## What I'd change for production
 
