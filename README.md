@@ -47,6 +47,7 @@ deployment. Other branches don't deploy.
 - [Automation with n8n](#automation-with-n8n)
 - [Security decisions](#security-decisions)
 - [Data minimization](#data-minimization)
+- [Privacy, security and GDPR](#privacy-security-and-gdpr)
 - [Tests](#tests)
 - [How this was built](#how-this-was-built)
 - [What I'd change for production](#what-id-change-for-production)
@@ -467,8 +468,16 @@ marked `failed` and listed on the admin page with a **Retry** button. Retrying c
   like a secret appears in it.
 - **Input validation**: Convex argument validators (types, enums for category, condition and status)
   plus server-side checks for lengths and dates. React escapes all output.
-- **HTTP headers**: `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy, a permissions
-  policy, no `X-Powered-By`.
+- **HTTP headers**: a Content-Security-Policy built from the environment (`lib/csp.ts`: only this
+  site, Convex and Clerk; no framing, no plugins; `unsafe-eval` only in development), HSTS in
+  production, `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy, a permissions policy, no
+  `X-Powered-By`.
+- **Rate limits**: 10 borrow requests an hour and 20 new listings a day per person, for everyone
+  (`convex/lib/limits.ts`), with plain messages.
+- **Audit log**: every change (listings, loans, Trusted Lender marks, roles, data downloads, account
+  deletions, retried emails) is recorded in the same transaction as the change, with ids and action
+  names only (`convex/lib/audit.ts`). Admins read it in plain words on the Admin page; entries older
+  than a year are deleted every night.
 - **Errors**: functions throw `ConvexError` with user-facing messages; anything unexpected shows a
   generic message in the UI.
 
@@ -484,6 +493,45 @@ marked `failed` and listed on the admin page with a **Retry** button. Retrying c
   and alert emails link to an execution instead of copying its data.
 - Soft-deleted listings keep loan history for accountability, without exposing it to anyone but the
   loan's participants and admins.
+
+## Privacy, security and GDPR
+
+LendLoop treats personal data the way a healthcare product would have to. In the app (live in the
+demo, source in `app/(legal)/`):
+[Privacy notice](https://lendloop-demo-five.vercel.app/privacy) ·
+[Terms of service](https://lendloop-demo-five.vercel.app/terms) ·
+[Service levels](https://lendloop-demo-five.vercel.app/service-levels) ·
+[Security and compliance](https://lendloop-demo-five.vercel.app/security). They're samples for a
+fictional company, not legal advice.
+
+**Data map** (what LendLoop keeps, why, and for how long):
+
+| Data | Where | Why | Lawful basis | Kept |
+|---|---|---|---|---|
+| First name, email | Convex `users` (from the Clerk sign-in) | Run the account, send loan emails | Contract | While the account exists; anonymised on deletion |
+| Listings | Convex `tools` | The service itself | Contract | While the account exists; removed on deletion |
+| Loans | Convex `loans` | The service; the other party's record | Contract, legitimate interests | Kept; the deleted person shows as "A former neighbour" |
+| Email and reminder records | Convex `outbox`, `reminders` (ids, status, times) | Reliable, visible automation | Legitimate interests | With their loan |
+| Audit log | Convex `auditLog` (ids, action names) | Security and accountability | Legitimate interests | 12 months, then deleted nightly |
+| Sign-in data | Clerk | Authentication | Contract | Until the person deletes their account |
+
+**Rights in the app**: **Your data** (`/account`) downloads everything held about you as one JSON
+file (access and portability) and deletes your account (erasure). Deletion is refused while a loan is
+open, for the only admin, and on the demo; otherwise it removes your listings, stops unsent emails
+about your loans, anonymises you in the other person's history, deletes the Clerk sign-in and signs
+you out (`convex/account.ts`). Names are corrected through Clerk and picked up at the next sign-in.
+
+**Cookies**: only Clerk's essential sign-in cookies, so no consent banner.
+
+**ISO**: designed to align with ISO/IEC 27001:2022, 27701 and 27018. The
+[security page](https://lendloop-demo-five.vercel.app/security) maps each relevant control to the
+file that implements it. It isn't certified: that needs an information security management system
+and an external audit, not just software.
+
+**Why the demo is closed to sign-ups**: anyone can sign in as the two test users, and the demo resets
+nightly; if real people could sign up, their emails would sit in a public demo. So Clerk's sign-up mode
+is Restricted on the demo's instance and the landing page says so (`NEXT_PUBLIC_LENDLOOP_DEMO=true`):
+the demo never holds real people's personal data.
 
 ## Tests
 
