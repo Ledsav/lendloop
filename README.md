@@ -26,6 +26,11 @@ these two. It starts over every night at 03:30 UTC (`devtools:demoReset`, `conve
 without n8n, so new requests say "email isn't set up here" in their history; the sample loans show
 the emails a full setup sends.
 
+Every push to `main` redeploys it: Vercel runs `npx convex deploy --cmd 'npm run build'`
+(`vercel.json`), which pushes the Convex functions with the production deploy key
+(`CONVEX_DEPLOY_KEY`, a Vercel environment variable) and then builds the app against that
+deployment. Other branches don't deploy.
+
 ---
 
 ## Contents
