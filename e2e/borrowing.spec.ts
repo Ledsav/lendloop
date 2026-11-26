@@ -64,3 +64,18 @@ test("a borrower cancels a request and the lender hears about it", async ({ brow
   await sam.getByRole("alertdialog").getByRole("button", { name: "Cancel request" }).click();
   await expect(toast(sam, "Request cancelled. Aisha gets an email.")).toBeVisible();
 });
+
+test("the footer leads to the privacy notice, terms, service levels and security pages", async ({ page }) => {
+  const pages: [string, string][] = [
+    ["Privacy", "Privacy notice"],
+    ["Terms", "Terms of service"],
+    ["Service levels", "Service levels"],
+    ["Security", "Security and compliance"],
+  ];
+  for (const [link, heading] of pages) {
+    await page.goto("/");
+    await page.getByRole("contentinfo").getByRole("link", { name: link, exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await expect(page.getByText("Sample document for a portfolio project.")).toBeVisible();
+  }
+});

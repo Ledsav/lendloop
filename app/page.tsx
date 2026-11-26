@@ -1,4 +1,5 @@
 import { preloadQuery } from "convex/nextjs";
+import { Footer } from "@/components/Footer";
 import { Drawing } from "@/components/items/drawings";
 import { Logo } from "@/components/loop/Logo";
 import { StageDial } from "@/components/loop/StageDial";
@@ -18,6 +19,23 @@ const STEPS = [
 ];
 
 const gutter = "px-4 sm:px-8 lg:px-14";
+
+// The public demo (NEXT_PUBLIC_LENDLOOP_DEMO=true on its deployment) is closed to new sign-ups.
+const DEMO = process.env.NEXT_PUBLIC_LENDLOOP_DEMO === "true";
+
+function DemoNote() {
+  return (
+    <div className="mt-6 max-w-[48ch] border-l-2 border-ultramarine pl-4 text-[15px] break-words">
+      <p className="font-semibold">This is the demo.</p>
+      <p className="mt-1 text-slate">
+        Sign in as <b className="font-semibold text-ink">lena+clerk_test@example.com</b> (a lender and the admin) or{" "}
+        <b className="font-semibold text-ink">sam+clerk_test@example.com</b> (a borrower), with the code{" "}
+        <b className="font-semibold text-ink">424242</b>. New sign-ups are closed, so the demo never holds real people&apos;s personal
+        data.
+      </p>
+    </div>
+  );
+}
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const [preloaded, params] = await Promise.all([preloadQuery(api.tools.listPublic, {}), searchParams]);
@@ -48,8 +66,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
             </p>
             <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-[18px] lg:mt-8">
               <SignInCta />
-              <span className="text-[14.5px] text-slate">With your email, no password</span>
+              {!DEMO && <span className="text-[14.5px] text-slate">With your email, no password</span>}
             </div>
+            {DEMO && <DemoNote />}
           </div>
           <div className="mx-auto w-[250px] lg:hidden">
             <StageDial size={250} plate={drill} />
@@ -82,10 +101,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
         </ol>
       </section>
 
-      <footer className={`flex flex-wrap justify-between gap-2 border-t border-hairline pt-7 pb-9 text-[14px] text-slate ${gutter}`}>
-        <span>LendLoop, a neighbourhood lending board</span>
-        <span>Sample project</span>
-      </footer>
+      <div className={gutter}>
+        <Footer />
+      </div>
     </div>
   );
 }

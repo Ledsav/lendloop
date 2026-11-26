@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Footer } from "@/components/Footer";
 import { Logo } from "@/components/loop/Logo";
 import { ErrorText, RowSkeleton } from "@/components/states";
 import { api } from "@/convex/_generated/api";
@@ -74,6 +75,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <RowSkeleton rows={6} />
         )}
       </main>
+      <div className="mx-auto max-w-[960px] px-4 sm:px-6">
+        <Footer />
+      </div>
     </div>
   );
 }
