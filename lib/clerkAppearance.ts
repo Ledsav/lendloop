@@ -18,6 +18,8 @@ export const clerkAppearance = {
     fontFamily: "var(--font-hanken), system-ui, sans-serif",
     borderRadius: "12px",
   },
+  // The Privacy and Terms links at the bottom of the sign-in box, so people see them before signing up.
+  options: { privacyPageUrl: "/privacy", termsPageUrl: "/terms" },
   // No arrows on buttons: the button's words say what happens.
   elements: { buttonArrowIcon: { display: "none" } },
 } as const;

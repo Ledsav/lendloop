@@ -111,8 +111,13 @@ export const deleteMine = mutation({
 
     const now = Date.now();
     const tools = await ctx.db.query("tools").withIndex("by_owner", (q) => q.eq("ownerId", viewer._id)).collect();
-    for (const tool of tools.filter((t) => t.removedAt === undefined))
-      await ctx.db.patch("tools", tool._id, { removedAt: now, removedBy: viewer._id });
+    // Every listing goes, and the note the person wrote goes with it (removed ones included); the item's
+    // name and category stay, so the other neighbour's loan history still makes sense.
+    for (const tool of tools)
+      await ctx.db.patch("tools", tool._id, {
+        description: "",
+        ...(tool.removedAt === undefined ? { removedAt: now, removedBy: viewer._id } : {}),
+      });
     for (const loan of [...asBorrower, ...asLender]) {
       const events = await ctx.db.query("outbox").withIndex("by_loan", (q) => q.eq("loanId", loan._id)).collect();
       for (const e of events.filter((e) => e.status === "pending" || e.status === "failed"))

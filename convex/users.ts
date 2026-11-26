@@ -12,7 +12,7 @@ export const store = mutation({
     // Clerk's Convex integration doesn't put the email in the token by itself: the session token
     // needs the email claim (README, step 2). Without it nobody could be notified or made admin.
     if (!identity.email) throw new ConvexError("Your sign-in has no email address.");
-    const name = (identity.givenName || identity.name?.split(" ")[0] || identity.nickname || "Neighbor").slice(0, 40);
+    const name = (identity.givenName || identity.name?.split(" ")[0] || identity.nickname || "Neighbour").slice(0, 40);
     const email = identity.email;
     const existing = await ctx.db
       .query("users")

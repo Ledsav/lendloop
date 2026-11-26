@@ -40,12 +40,15 @@ function DemoNote() {
 export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const [preloaded, params] = await Promise.all([preloadQuery(api.tools.listPublic, {}), searchParams]);
   const deleted = params.deleted === "1";
+  const signInKept = params.signin === "kept";
   const drill = <Drawing kind="drill" />;
   return (
     <div className="mx-auto max-w-[1100px]">
       {deleted && (
         <p role="status" className={`border-b border-hairline bg-field py-3 text-[15px] ${gutter}`}>
-          Your account and data are deleted.
+          {signInKept
+            ? "Your LendLoop data is deleted, but your sign-in couldn't be removed. Write to privacy@lendloop.example and we'll remove it."
+            : "Your account and data are deleted."}
         </p>
       )}
       <nav className={`flex items-center justify-between py-5 lg:py-7 ${gutter}`}>

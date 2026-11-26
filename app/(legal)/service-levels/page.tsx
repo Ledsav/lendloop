@@ -43,22 +43,24 @@ export default function ServiceLevelsPage() {
 
       <LegalSection title="Backups and recovery">
         <p>
-          The database is backed up daily and backups are kept for 7 days. If we ever need to restore, we aim to lose at most one day of
+          The database is backed up every day with Convex&apos;s scheduled backups, which are kept for 7 days. If we ever need to restore, we
+          aim to lose at most one day of
           changes (recovery point) and to be running again within one day (recovery time).
         </p>
       </LegalSection>
 
       <LegalSection title="Emails and reminders">
         <p>
-          A notification that can&apos;t be delivered is retried up to six times over about a quarter of an hour, then shown to admins,
+          A notification that can&apos;t be delivered is tried up to six times over about a quarter of an hour, then shown to admins,
           who can send it again. Overdue reminders go out once a day; a reminder is never sent twice for the same loan on the same day.
         </p>
       </LegalSection>
 
       <LegalSection title="How changes are made">
         <p>
-          Every change passes automated checks (code style, types, unit tests and a full build) before it reaches the live site, and the
-          borrowing flow is tested in a real browser on demand.
+          Every change is made on a branch, where automated checks run on each push (code style, types, unit tests and a full build).
+          It reaches main, which updates the live site, only once those checks pass. The borrowing flow is also tested in a real
+          browser.
         </p>
       </LegalSection>
 

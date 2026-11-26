@@ -85,6 +85,7 @@ describe("delete my account", () => {
     expect(row!.deletedAt).toBeDefined();
     expect(row!.tokenIdentifier.startsWith("deleted|")).toBe(true);
     expect(tool!.removedAt).toBeDefined();
+    expect(tool!.description).toBe(""); // free text the person wrote is erased, the item name stays for the other party
     expect(actions.at(-1)).toBe("account.deleted");
     const [past] = await bob.query(api.loans.myRequests, {});
     expect(past.owner.name).toBe("A former neighbour");

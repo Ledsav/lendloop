@@ -181,6 +181,10 @@ them in `.env.n8n`.
    npx -y clerk@latest config patch --json '{"session":{"claims":{"email":"{{user.primary_email_address}}","name":"{{user.full_name}}","given_name":"{{user.first_name}}"}}}'
    ```
 
+5. Ask for a first name at sign-up and turn passwords off (Configure → User & authentication). Without
+   a first name, neighbours see just "Neighbour"; with passwords on, Clerk's sign-up
+   asks for one, which the sign-in box says it doesn't.
+
 ### 3. Convex
 
 ```bash
@@ -547,7 +551,7 @@ with the sample data: the public page shows names and categories but no owners; 
 on the calendar, Lena approves and marks them returned, and Sam's history tells the story; a range
 across booked days explains itself; a cancellation reaches the lender. They sign in as Clerk's test
 users (code 424242, no inbox needed) and each makes its own request, so they can run again on the
-same data. Install the browser once (`npx playwright install chromium`), start the app, seed it
+same data (up to five runs an hour: each uses two of Sam's ten borrow requests per hour). Install the browser once (`npx playwright install chromium`), start the app, seed it
 (step 7), then `npm run e2e`; `E2E_BASE_URL` points them at another address and `E2E_CHANNEL=msedge`
 (or `chrome`) uses a browser you already have. On GitHub, **Actions → Browser tests → Run workflow**
 runs them against the live demo.
@@ -572,6 +576,13 @@ runs them against the live demo.
 - `convex/tests/admin.test.ts`: admin rows carry first names and counts, never emails.
 - `convex/tests/seed.test.ts`: the sample data refuses to run without the dev flag or the two real
   accounts, fills every category and loan state, schedules and emails nothing, and runs twice safely.
+- `convex/tests/audit.test.ts`: every change is audited with ids only, reads aren't, only admins read
+  the log, missing people and items still read well, entries go after a year.
+- `convex/tests/limits.test.ts`: the 11th request in an hour and the 21st listing in a day are refused;
+  older ones don't count; the sample data doesn't trip the limit.
+- `convex/tests/account.test.ts`: the export holds only your data; deletion is refused while loans are
+  open, for the only admin and on the demo, and otherwise anonymises you, erases your notes, keeps the
+  other person's history and skips unsent emails; signing in again starts a fresh account.
 - `lib/*.test.ts`: the interface's words and numbers: dates ("Fri 27 Nov", "today 9:00"), status
   lines, the dial's geometry, the 12-week strip, search and category tabs, date-range checks (on the
   server's UTC day), which drawing each item gets.
@@ -591,20 +602,25 @@ setup (`e2e/`).
   notification preferences with unsubscribe links.
 - **Secret rotation**: a key id in the signature header and two active secrets during a rotation.
 - **User lifecycle**: sync users from Clerk webhooks (verified with Svix) instead of on sign-in, so
-  email changes and account deletions propagate; delete or anonymize a user's data on request.
-- **Abuse and scale**: rate limits on requests and listings (for example Convex's rate-limiter
-  component) and on the HTTP endpoints; pagination; a denormalized availability field instead of
-  computing it per tool.
-- **Admin accountability**: an audit log of admin actions, MFA for admins, and roles managed in one
-  place.
+  email changes and deletions made in Clerk's dashboard reach LendLoop too (deletion from the app
+  already anonymises the person: see [Privacy, security and GDPR](#privacy-security-and-gdpr)).
+- **Abuse and scale**: the per-person limits are simple counts today; at scale, Convex's rate-limiter
+  component (token buckets, also on the HTTP endpoints), pagination, and a denormalized availability
+  field instead of computing it per tool.
+- **Admin accountability**: the audit log already records every change; add MFA for admins, roles
+  managed in one place, and export the audit log to a write-once store.
 - **Time zones**: store each user's time zone; send reminders in the morning of their time zone
   rather than 9:00 UTC.
 - **Observability**: Sentry for Next.js and Convex, Convex log streams to Datadog, an alert when
   failed outbox events pile up, n8n alerts to Slack or PagerDuty instead of email.
-- **Retention**: delete outbox and reminder rows after a set period; keep n8n's execution pruning.
+- **Backups**: turn on Convex's scheduled daily backups, kept for 7 days, as the service levels page
+  promises (the demo has none: it starts over every night).
+- **Retention**: audit entries already expire after a year; also delete outbox and reminder rows after
+  a set period, and keep n8n's execution pruning (failed runs hold a name and email for 7 days).
 - **Delivery guarantees**: to rule out a duplicate reminder entirely, send each reminder through its
   own sub-workflow execution with an idempotency key at the email provider.
 - **CI/CD**: lint, typecheck, tests and a build run on every push (`.github/workflows/ci.yml`); add
   dependency scanning and preview deployments, and keep the n8n workflows in Git with n8n's source
   control feature.
-- **Content Security Policy**: add a CSP tuned for Clerk and Convex.
+- **Content Security Policy**: the CSP allows `'unsafe-inline'` scripts so pages can stay static;
+  move to per-request nonces (rendering pages dynamically) to drop it.

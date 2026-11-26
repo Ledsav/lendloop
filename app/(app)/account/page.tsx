@@ -1,8 +1,9 @@
 "use client";
 
-import { useClerk, useUser } from "@clerk/nextjs";
+import { useClerk, useReverification, useUser } from "@clerk/nextjs";
 import { useConvex, useMutation } from "convex/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/ConfirmAction";
@@ -16,8 +17,13 @@ export default function AccountPage() {
   const convex = useConvex();
   const recordExport = useMutation(api.account.recordExport);
   const remove = useAction(useMutation(api.account.deleteMine));
+  const router = useRouter();
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const { setActive, signOut } = useClerk();
+  // Clerk may ask the person to confirm it's them before deleting the sign-in (a recent session).
+  const deleteSignIn = useReverification(async () => {
+    await user?.delete();
+  });
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -31,9 +37,9 @@ export default function AccountPage() {
       link.href = url;
       link.download = `lendloop-my-data-${data.exportedAt.slice(0, 10)}.json`;
       link.click();
-      URL.revokeObjectURL(url);
-      await recordExport({});
+      setTimeout(() => URL.revokeObjectURL(url), 30_000); // revoking at once can cancel it in Safari
       toast.success("Your data is downloaded.");
+      recordExport({}).catch(() => {}); // the audit entry; the download itself already worked
     } catch {
       setDownloadError("The download didn't work. Check your connection and try again.");
     } finally {
@@ -79,15 +85,19 @@ export default function AccountPage() {
         onOpen={remove.clearError}
         onConfirm={async () => {
           const ok = await remove.run({});
-          if (ok) {
-            try {
-              await user?.delete(); // Clerk's self-service deletion, if the instance allows it
-            } catch {
-              // The LendLoop data is gone either way; the sign-in can be deleted from the account menu.
-            }
-            await signOut({ redirectUrl: "/?deleted=1" });
+          if (!ok) return false;
+          // The LendLoop data is gone. Now the sign-in, the way Clerk's own delete form does it:
+          // delete the user, then clear the session (signing out would find no session left).
+          let target = "/?deleted=1";
+          try {
+            await deleteSignIn();
+            await setActive({ session: null, redirectUrl: target });
+          } catch {
+            target = "/?deleted=1&signin=kept"; // Clerk refused, or the person cancelled the confirmation
+            await signOut({ redirectUrl: target }).catch(() => {});
           }
-          return ok;
+          router.replace(target); // in case neither call navigated
+          return true;
         }}
       />
 

@@ -63,6 +63,7 @@ export default function PrivacyPage() {
             ["After you delete your account", "Your listings are removed. Past loans stay for the other neighbour, showing \"A former neighbour\" instead of your name."],
             ["The audit log", "12 months, then deleted automatically"],
             ["Email and reminder records (ids only)", "As long as the loan they belong to"],
+            ["Failed email runs in n8n (may include a name and email)", "7 days, then deleted automatically. Successful runs aren't kept."],
             ["Providers' technical logs", "As set by each provider, typically 30 days or less"],
           ]}
         />
