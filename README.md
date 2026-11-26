@@ -11,10 +11,26 @@ Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and b
 
 ![An item's page: the dial shows day 2 of 3 of a loan, with its 12-week history and a calendar to request dates](docs/screenshots/item.jpg)
 
+## Live demo
+
+**[lendloop-demo-five.vercel.app](https://lendloop-demo-five.vercel.app)**. Sign in as either of Clerk's
+test users with the code **424242** (no inbox needed):
+
+| Who | Email | Try |
+|---|---|---|
+| Lena, a lender and the admin | `lena+clerk_test@example.com` | Incoming requests, her drill out on loan, the Admin page |
+| Sam, a borrower | `sam+clerk_test@example.com` | My requests (one loan is late), requesting dates on a free item |
+
+The demo is its own Convex deployment holding only the sample data, since anyone can sign in as
+these two. It starts over every night at 03:30 UTC (`devtools:demoReset`, `convex/crons.ts`). It runs
+without n8n, so new requests say "email isn't set up here" in their history; the sample loans show
+the emails a full setup sends.
+
 ---
 
 ## Contents
 
+- [Live demo](#live-demo)
 - [What it does](#what-it-does)
   - [Design](#design)
 - [Requirements checklist](#requirements-checklist)
@@ -479,7 +495,9 @@ on the calendar, Lena approves and marks them returned, and Sam's history tells 
 across booked days explains itself; a cancellation reaches the lender. They sign in as Clerk's test
 users (code 424242, no inbox needed) and each makes its own request, so they can run again on the
 same data. Install the browser once (`npx playwright install chromium`), start the app, seed it
-(step 7), then `npm run e2e`; `E2E_BASE_URL` points them at another address.
+(step 7), then `npm run e2e`; `E2E_BASE_URL` points them at another address and `E2E_CHANNEL=msedge`
+(or `chrome`) uses a browser you already have. On GitHub, **Actions → Browser tests → Run workflow**
+runs them against the live demo.
 
 - `convex/tests/access.test.ts`: the public list hides owners; signed-out callers are refused;
   users can't edit or remove other people's listings; admin functions refuse non-admins; the role

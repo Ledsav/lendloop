@@ -5,6 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
  * data (README, "Browser tests"). They sign in as the Clerk test users and share one database, so
  * they run one at a time.
  *   E2E_BASE_URL=https://your-app.example npx playwright test
+ *   E2E_CHANNEL=msedge npm run e2e      (an installed browser instead of Playwright's own)
  */
 export default defineConfig({
   testDir: "e2e",
@@ -21,5 +22,15 @@ export default defineConfig({
     trace: "off",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 860 } } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 860 },
+        // E2E_CHANNEL=msedge or chrome uses an installed browser instead of Playwright's own.
+        ...(process.env.E2E_CHANNEL ? { channel: process.env.E2E_CHANNEL } : {}),
+      },
+    },
+  ],
 });
