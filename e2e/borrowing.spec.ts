@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { LENA, SAM, day, openItem, signedIn, toast } from "./helpers";
+import { LENA, SAM, openItem, pickDay, signedIn, toast } from "./helpers";
 
 // Run against the sample data (npx convex run devtools:seed). Each test makes its own request, so
 // the suite can run again on the same data.
@@ -17,8 +17,8 @@ test("the public page lists what's free with names and categories, never owners"
 test("a neighbour requests dates, the lender approves, then marks them returned", async ({ browser }) => {
   const sam = await signedIn(browser, SAM);
   await openItem(sam, "Folding chairs, set of six");
-  await day(sam, 0).first().click();
-  await day(sam, 1).first().click();
+  await pickDay(sam, 0);
+  await pickDay(sam, 1);
   await expect(sam.getByText(/, 2 days$/)).toBeVisible();
   await sam.getByRole("button", { name: "Request dates" }).click();
   await expect(toast(sam, "Dates requested. Lena gets an email.")).toBeVisible();
@@ -45,8 +45,8 @@ test("a neighbour requests dates, the lender approves, then marks them returned"
 test("a range across someone else's booked days explains why it can't be sent", async ({ browser }) => {
   const sam = await signedIn(browser, SAM);
   await openItem(sam, "Camping stove"); // the sample data books it from day +7 to +9
-  await day(sam, 5).first().click();
-  await day(sam, 10).first().click();
+  await pickDay(sam, 5);
+  await pickDay(sam, 10);
   await expect(sam.getByText("Some of those days are already booked.")).toBeVisible();
   await expect(sam.getByRole("button", { name: "Request dates" })).toBeDisabled();
 });
@@ -54,8 +54,8 @@ test("a range across someone else's booked days explains why it can't be sent", 
 test("a borrower cancels a request and the lender hears about it", async ({ browser }) => {
   const sam = await signedIn(browser, SAM);
   await openItem(sam, "Slow cooker");
-  await day(sam, 20).first().click();
-  await day(sam, 21).first().click();
+  await pickDay(sam, 20);
+  await pickDay(sam, 21);
   await sam.getByRole("button", { name: "Request dates" }).click();
   await expect(toast(sam, "Dates requested. Aisha gets an email.")).toBeVisible();
 

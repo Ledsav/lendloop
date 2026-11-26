@@ -21,11 +21,18 @@ export async function signedIn(browser: Browser, email: string): Promise<Page> {
   return page;
 }
 
-/** A day button on the calendar, `offset` days from today (the browser runs in UTC, en-GB). */
-export const day = (page: Page, offset: number) =>
-  page.locator(
-    `button[data-day="${new Date(Date.now() + offset * 86_400_000).toLocaleDateString("en-GB", { timeZone: "UTC" })}"]`,
-  );
+/**
+ * Clicks the calendar day `offset` days from today (the browser runs in UTC, en-GB), paging the
+ * calendar forward a month or two if that day isn't showing yet.
+ */
+export async function pickDay(page: Page, offset: number) {
+  const label = new Date(Date.now() + offset * 86_400_000).toLocaleDateString("en-GB", { timeZone: "UTC" });
+  const button = page.locator(`button[data-day="${label}"]`).first();
+  for (let i = 0; i < 2 && !(await button.isVisible()); i++) {
+    await page.getByRole("button", { name: /next month/i }).click();
+  }
+  await button.click();
+}
 
 export async function openItem(page: Page, name: string) {
   await page.goto("/tools");
