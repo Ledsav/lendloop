@@ -33,32 +33,41 @@ export function LegalSection({ title, children }: { title: string; children: Rea
   );
 }
 
-/** A plain table with hairline rows; scrolls sideways inside itself on a narrow phone. */
+/**
+ * A plain table with hairline rows. On a phone each row stacks into a small block, the first cell as
+ * its heading and the others labelled, so nothing hides off the side of the screen.
+ */
 export function LegalTable({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[520px] border-collapse text-left text-[15px]">
-        <thead>
-          <tr className="border-b border-ink">
-            {head.map((h) => (
-              <th key={h} className="py-2 pr-4 font-semibold">
-                {h}
-              </th>
+    <table className="w-full border-collapse text-left text-[15px]">
+      <thead className="max-sm:hidden">
+        <tr className="border-b border-ink">
+          {head.map((h) => (
+            <th key={h} className="py-2 pr-4 font-semibold">
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((cells, i) => (
+          <tr key={i} className="border-b border-hairline align-top max-sm:block max-sm:py-2.5">
+            {cells.map((c, j) => (
+              <td
+                key={j}
+                data-label={head[j]}
+                className={`py-2.5 pr-4 max-sm:block max-sm:py-0.5 max-sm:pr-0 ${
+                  j === 0
+                    ? "max-sm:font-semibold"
+                    : "max-sm:before:block max-sm:before:text-[13px] max-sm:before:text-slate max-sm:before:content-[attr(data-label)]"
+                }`}
+              >
+                {c}
+              </td>
             ))}
           </tr>
-        </thead>
-        <tbody>
-          {rows.map((cells, i) => (
-            <tr key={i} className="border-b border-hairline align-top">
-              {cells.map((c, j) => (
-                <td key={j} className="py-2.5 pr-4">
-                  {c}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }
