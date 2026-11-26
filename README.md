@@ -533,8 +533,8 @@ file that implements it. It isn't certified: that needs an information security 
 and an external audit, not just software.
 
 **Why the demo is closed to sign-ups**: anyone can sign in as the two test users, and the demo resets
-nightly; if real people could sign up, their emails would sit in a public demo. So Clerk's sign-up mode
-is Restricted on the demo's instance and the landing page says so (`NEXT_PUBLIC_LENDLOOP_DEMO=true`):
+nightly; if real people could sign up, their emails would sit in a public demo. So the demo's Clerk
+instance is invite-only (User & authentication → Access mode) and the landing page says so (`NEXT_PUBLIC_LENDLOOP_DEMO=true`):
 the demo never holds real people's personal data.
 
 ## Tests
