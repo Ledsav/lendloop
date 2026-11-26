@@ -18,6 +18,7 @@ import type * as lib_dates from "../lib/dates.js";
 import type * as lib_events from "../lib/events.js";
 import type * as lib_hmac from "../lib/hmac.js";
 import type * as lib_itemStats from "../lib/itemStats.js";
+import type * as lib_limits from "../lib/limits.js";
 import type * as lib_loans from "../lib/loans.js";
 import type * as lib_seedData from "../lib/seedData.js";
 import type * as lib_validators from "../lib/validators.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "lib/events": typeof lib_events;
   "lib/hmac": typeof lib_hmac;
   "lib/itemStats": typeof lib_itemStats;
+  "lib/limits": typeof lib_limits;
   "lib/loans": typeof lib_loans;
   "lib/seedData": typeof lib_seedData;
   "lib/validators": typeof lib_validators;

@@ -5,6 +5,7 @@ import { isAdmin, requireUser } from "./lib/auth";
 import { today } from "./lib/dates";
 import { audit } from "./lib/audit";
 import { emitLoanEvent } from "./lib/events";
+import { checkListingLimit } from "./lib/limits";
 import { booked, nextFree, usage } from "./lib/itemStats";
 import { availability, lentCount, loopFor, toolLoans } from "./lib/loans";
 import { category, condition } from "./lib/validators";
@@ -154,6 +155,7 @@ export const create = mutation({
   args: listingFields,
   handler: async (ctx, args) => {
     const viewer = await requireUser(ctx);
+    await checkListingLimit(ctx, viewer._id, Date.now());
     const toolId = await ctx.db.insert("tools", {
       ownerId: viewer._id,
       category: args.category,

@@ -5,6 +5,7 @@ import { requireUser } from "./lib/auth";
 import { overlaps, today, validateLoanDates } from "./lib/dates";
 import { audit } from "./lib/audit";
 import { emitLoanEvent } from "./lib/events";
+import { checkRequestLimit } from "./lib/limits";
 import { loanView } from "./lib/loans";
 
 async function getLoan(ctx: MutationCtx, loanId: Id<"loans">) {
@@ -32,6 +33,7 @@ export const request = mutation({
     const tool = await ctx.db.get("tools", toolId);
     if (!tool || tool.removedAt !== undefined) throw new ConvexError("Listing not found.");
     if (tool.ownerId === viewer._id) throw new ConvexError("You can't borrow your own tool.");
+    await checkRequestLimit(ctx, viewer._id, Date.now());
     validateLoanDates(startDate, endDate);
     const range = { startDate, endDate };
 
