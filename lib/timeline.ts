@@ -46,9 +46,10 @@ export function timelineText(entry: TimelineEntry, loan: LoanRowData): string {
         }
         return `${toViewer ? "You were" : `${name} was`} emailed about the ${EVENT_NOUN[entry.event]}`;
       }
-      if (entry.status === "failed") return `Couldn't email ${toViewer ? "you" : name}. An admin can retry it.`;
+      // No full stops: the page adds ", <time>" after each line.
+      if (entry.status === "failed") return `Couldn't email ${toViewer ? "you" : name} (an admin can retry it)`;
       if (entry.status === "skipped")
-        return `${toViewer ? "You weren't" : `${name} wasn't`} emailed: email isn't set up here.`;
+        return `${toViewer ? "You weren't" : `${name} wasn't`} emailed (email isn't set up here)`;
       return `Emailing ${toViewer ? "you" : name}`;
     }
   }

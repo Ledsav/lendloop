@@ -17,8 +17,8 @@ describe("a loan's story in plain words", () => {
   });
 
   test("emails that didn't go out say so", () => {
-    expect(timelineText(email("failed"), loanFixture("borrower"))).toBe("Couldn't email Lena. An admin can retry it.");
-    expect(timelineText(email("skipped"), loanFixture("admin"))).toBe("Lena wasn't emailed: email isn't set up here.");
+    expect(timelineText(email("failed"), loanFixture("borrower"))).toBe("Couldn't email Lena (an admin can retry it)");
+    expect(timelineText(email("skipped"), loanFixture("admin"))).toBe("Lena wasn't emailed (email isn't set up here)");
     expect(timelineText(email("pending"), loanFixture("borrower"))).toBe("Emailing Lena");
   });
 
