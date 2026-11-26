@@ -36,13 +36,14 @@ export function contentSecurityPolicy(opts: { convexUrl?: string; clerkPublishab
     ...(opts.clerkPublishableKey?.startsWith("pk_test_") ? ["https://*.clerk.accounts.dev"] : []),
   ];
   const turnstile = "https://challenges.cloudflare.com"; // Clerk's bot check
+  const protect = ["https://cdn.protect.clerk.com", "https://*.protect.clerk.com"]; // Clerk's fraud protection
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
-    ["script-src", ["'self'", "'unsafe-inline'", ...(opts.dev ? ["'unsafe-eval'"] : []), ...clerk, turnstile]],
+    ["script-src", ["'self'", "'unsafe-inline'", ...(opts.dev ? ["'unsafe-eval'"] : []), ...clerk, turnstile, ...protect]],
     ["style-src", ["'self'", "'unsafe-inline'"]],
     ["img-src", ["'self'", "data:", "blob:", "https://img.clerk.com", ...clerk]],
     ["font-src", ["'self'", "data:"]],
-    ["connect-src", ["'self'", ...convexOrigins(opts.convexUrl), ...clerk, "https://clerk-telemetry.com"]],
+    ["connect-src", ["'self'", ...convexOrigins(opts.convexUrl), ...clerk, ...protect, "https://clerk-telemetry.com"]],
     ["frame-src", ["'self'", turnstile, ...clerk]],
     ["worker-src", ["'self'", "blob:"]],
     ["frame-ancestors", ["'none'"]],

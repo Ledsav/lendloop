@@ -34,6 +34,8 @@ describe("content security policy", () => {
   test("Clerk's scripts, images and bot check are allowed; framing and plugins are not", () => {
     const csp = contentSecurityPolicy({ convexUrl: "https://x.convex.cloud", clerkPublishableKey: devKey, dev: false });
     expect(directive(csp, "script-src")).toContain("https://*.clerk.accounts.dev");
+    expect(directive(csp, "script-src")).toContain("https://cdn.protect.clerk.com"); // Clerk's fraud protection
+    expect(directive(csp, "connect-src")).toContain("https://*.protect.clerk.com");
     expect(directive(csp, "frame-src")).toContain("https://challenges.cloudflare.com");
     expect(directive(csp, "img-src")).toContain("https://img.clerk.com");
     expect(csp).toContain("frame-ancestors 'none'");
