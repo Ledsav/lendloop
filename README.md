@@ -32,6 +32,8 @@ Stack: **Next.js 16** (App Router) · **Clerk** (auth) · **Convex** (data and b
 
 ## What it does
 
+![A loan from both sides: Sam picks dates and requests them, Lena approves, and Sam's history shows each step and email](docs/screenshots/flow.gif)
+
 <p align="center">
   <img src="docs/screenshots/browse-phone.jpg" width="31%" alt="Things to borrow on a phone: a row per item with its status, free now, day 2 of 3 or late">
   <img src="docs/screenshots/item-phone.jpg" width="31%" alt="An item on a phone: the dial at day 2 of 3, with you">
@@ -468,7 +470,16 @@ marked `failed` and listed on the admin page with a **Retry** button. Retrying c
 npm test            # Vitest
 npm run typecheck   # Next.js app and Convex functions
 npm run lint
+npm run e2e         # Playwright, in a real browser (below)
 ```
+
+**Browser tests** (`e2e/borrowing.spec.ts`) run the borrowing flow end to end against a running app
+with the sample data: the public page shows names and categories but no owners; Sam requests dates
+on the calendar, Lena approves and marks them returned, and Sam's history tells the story; a range
+across booked days explains itself; a cancellation reaches the lender. They sign in as Clerk's test
+users (code 424242, no inbox needed) and each makes its own request, so they can run again on the
+same data. Install the browser once (`npx playwright install chromium`), start the app, seed it
+(step 7), then `npm run e2e`; `E2E_BASE_URL` points them at another address.
 
 - `convex/tests/access.test.ts`: the public list hides owners; signed-out callers are refused;
   users can't edit or remove other people's listings; admin functions refuse non-admins; the role
